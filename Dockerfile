@@ -8,7 +8,6 @@ WORKDIR /src
 # Copy project files first for better layer caching
 COPY ["src/Nupack.Server.Api/Nupack.Server.Api.csproj", "src/Nupack.Server.Api/"]
 COPY ["src/Nupack.Server.Web/Nupack.Server.Web.csproj", "src/Nupack.Server.Web/"]
-COPY ["nuget.config", "."]
 
 # Restore dependencies for both projects
 RUN dotnet restore "src/Nupack.Server.Api/Nupack.Server.Api.csproj"
@@ -37,11 +36,9 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 # Create application directory
 WORKDIR /app
 
-# Create non-root user for security
-RUN groupadd -r appgroup && useradd -r -g appgroup appuser
-
-# Create data directories with proper permissions
-RUN mkdir -p /app/data/packages /app/server /app/web && \
+# Create non-root user and data directories with proper permissions
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser && \
+    mkdir -p /app/data/packages /app/server /app/web && \
     chown -R appuser:appgroup /app
 
 # Copy published applications
@@ -94,10 +91,10 @@ ENTRYPOINT ["/app/start.sh"]
 # Metadata labels
 LABEL maintainer="Nupack Server Contributors" \
       version="1.0.0" \
-      description="Nupack Server - A modern, lightweight NuGet package server with web UI" \
+      description="Nupack Server - A modern, self-hosted NuGet v3 server with web interface" \
       org.opencontainers.image.title="Nupack Server" \
-      org.opencontainers.image.description="A modern, lightweight NuGet package server built with .NET 8" \
+      org.opencontainers.image.description="A modern, self-hosted NuGet v3 server implementation built with .NET 9" \
       org.opencontainers.image.version="1.0.0" \
       org.opencontainers.image.vendor="Nupack Server Contributors" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.source="https://github.com/your-org/nupack-server"
+      org.opencontainers.image.source="https://github.com/dgknttr/Nupack.Server"
