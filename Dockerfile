@@ -32,7 +32,7 @@ RUN dotnet publish "Nupack.Server.Web.csproj" \
     --output /app/web
 
 # Runtime stage - Use minimal runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 
 # Create application directory
 WORKDIR /app
