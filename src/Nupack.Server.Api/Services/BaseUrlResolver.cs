@@ -38,8 +38,9 @@ public class BaseUrlResolver : IBaseUrlResolver
                 var request = context.Request;
                 var baseUrl = $"{request.Scheme}://{request.Host}";
 
-                // Sanitize the base URL for logging to prevent log forging attacks
-                _logger.LogDebug("Resolved base URL from HttpContext: {BaseUrl}", SanitizeForLogging(baseUrl));
+                // Log base URL resolution without including user-controlled data to prevent log forging
+                _logger.LogDebug("Successfully resolved base URL from HttpContext (scheme: {Scheme}, host length: {HostLength})",
+                    request.Scheme, request.Host.ToString().Length);
                 return baseUrl;
             }
             catch (Exception ex)
@@ -66,8 +67,9 @@ public class BaseUrlResolver : IBaseUrlResolver
 
             if (!string.IsNullOrWhiteSpace(configuredBaseUrl))
             {
-                // Sanitize the configured base URL for logging to prevent log forging attacks
-                _logger.LogDebug("Resolved base URL from configuration in Development environment: {BaseUrl}", SanitizeForLogging(configuredBaseUrl));
+                // Log configuration resolution without including potentially user-controlled data
+                _logger.LogDebug("Successfully resolved base URL from configuration in Development environment (length: {Length})",
+                    configuredBaseUrl.Length);
                 return configuredBaseUrl;
             }
         }
@@ -81,19 +83,5 @@ public class BaseUrlResolver : IBaseUrlResolver
         throw new InvalidOperationException(finalErrorMessage);
     }
 
-    /// <summary>
-    /// Sanitizes a string for safe logging by removing characters that could be used for log forging attacks.
-    /// </summary>
-    /// <param name="input">The input string to sanitize</param>
-    /// <returns>A sanitized string safe for logging</returns>
-    private static string SanitizeForLogging(string input)
-    {
-        if (string.IsNullOrEmpty(input))
-            return input;
 
-        return input.Replace(Environment.NewLine, "")
-                   .Replace("\r", "")
-                   .Replace("\n", "")
-                   .Replace("\t", "");
-    }
 }
