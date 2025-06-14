@@ -63,13 +63,16 @@ jobs:
   secret-scan:
     name: Secret Scanning
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read
+      security-events: write
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-    
+
     - name: Run TruffleHog
       uses: trufflesecurity/trufflehog@main
       with:
@@ -77,3 +80,18 @@ jobs:
         base: main
         head: HEAD
         extra_args: --debug --only-verified
+
+    - name: Run TruffleHog with SARIF output
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: main
+        head: HEAD
+        extra_args: --format=sarif --output=trufflehog-results.sarif --only-verified
+
+    - name: Upload TruffleHog SARIF results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: trufflehog-results.sarif
+        category: trufflehog
