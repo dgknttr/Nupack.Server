@@ -73,38 +73,18 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Run TruffleHog
+    - name: Run TruffleHog (PR)
+      if: github.event_name == 'pull_request'
       uses: trufflesecurity/trufflehog@main
       with:
         path: ./
         base: ${{ github.event.repository.default_branch }}
         head: HEAD
-        extra_args: --json --only-verified > trufflehog-raw.json
+        extra_args: --debug --only-verified
 
-    - name: Generate basic SARIF file
-      run: |
-        cat > trufflehog-results.sarif << 'EOF'
-        {
-          "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
-          "version": "2.1.0",
-          "runs": [
-            {
-              "tool": {
-                "driver": {
-                  "name": "TruffleHog",
-                  "version": "3.89.1",
-                  "informationUri": "https://github.com/trufflesecurity/trufflehog"
-                }
-              },
-              "results": []
-            }
-          ]
-        }
-        EOF
-
-    - name: Upload TruffleHog SARIF results
-      uses: github/codeql-action/upload-sarif@v3
-      if: always()
+    - name: Run TruffleHog (Push/Schedule)
+      if: github.event_name != 'pull_request'
+      uses: trufflesecurity/trufflehog@main
       with:
-        sarif_file: trufflehog-results.sarif
-        category: trufflehog
+        path: ./
+        extra_args: --debug --only-verified
