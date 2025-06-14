@@ -73,20 +73,36 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Run TruffleHog
+    - name: Run TruffleHog (PR)
+      if: github.event_name == 'pull_request'
       uses: trufflesecurity/trufflehog@main
       with:
         path: ./
-        base: main
+        base: ${{ github.event.repository.default_branch }}
         head: HEAD
         extra_args: --debug --only-verified
 
-    - name: Run TruffleHog with SARIF output
+    - name: Run TruffleHog (Push/Schedule)
+      if: github.event_name != 'pull_request'
       uses: trufflesecurity/trufflehog@main
       with:
         path: ./
-        base: main
+        extra_args: --debug --only-verified
+
+    - name: Run TruffleHog with SARIF output (PR)
+      if: github.event_name == 'pull_request'
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: ${{ github.event.repository.default_branch }}
         head: HEAD
+        extra_args: --format=sarif --output=trufflehog-results.sarif --only-verified
+
+    - name: Run TruffleHog with SARIF output (Push/Schedule)
+      if: github.event_name != 'pull_request'
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
         extra_args: --format=sarif --output=trufflehog-results.sarif --only-verified
 
     - name: Upload TruffleHog SARIF results
