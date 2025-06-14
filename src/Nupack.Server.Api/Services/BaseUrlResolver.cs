@@ -39,8 +39,8 @@ public class BaseUrlResolver : IBaseUrlResolver
                 var baseUrl = $"{request.Scheme}://{request.Host}";
 
                 // Log base URL resolution without including user-controlled data to prevent log forging
-                _logger.LogDebug("Successfully resolved base URL from HttpContext (scheme: {Scheme}, host length: {HostLength})",
-                    request.Scheme, request.Host.ToString().Length);
+                _logger.LogDebug("Successfully resolved base URL from HttpContext (host length: {HostLength})",
+                    request.Host.ToString().Length);
                 return baseUrl;
             }
             catch (Exception ex)
