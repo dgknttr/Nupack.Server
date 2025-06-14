@@ -1,8 +1,35 @@
-# 📦 Nupack Server
+# 📦 Nupack Server - Self-Hosted NuGet Package Repository
 
-An open-source NuGet V3 server implementation with a web interface, built using ASP.NET Core 8. This community project provides a straightforward solution for hosting NuGet packages, whether for private organizations or community package repositories.
+![CI](https://github.com/dgknttr/Nupack.Server/actions/workflows/ci.yml/badge.svg)
+![Security](https://github.com/dgknttr/Nupack.Server/actions/workflows/security.yml/badge.svg)
+![CodeQL](https://github.com/dgknttr/Nupack.Server/actions/workflows/codeql.yml/badge.svg)
 
-![Nupack Server](https://img.shields.io/badge/NuGet-V3%20API-blue) ![ASP.NET Core](https://img.shields.io/badge/ASP.NET%20Core-8.0-purple) ![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-3.0-cyan) ![License](https://img.shields.io/badge/License-MIT-green) ![Open Source](https://img.shields.io/badge/Open%20Source-Community-brightgreen)
+A modern, **open-source NuGet v3 server implementation** with web interface, built using ASP.NET Core 9. This **private NuGet package repository** provides a powerful **NuGet.Server alternative** for hosting NuGet packages, whether for **enterprise organizations**, **development teams**, or **community package repositories**.
+
+**🔍 Keywords**: *self-hosted NuGet server, private NuGet repository, NuGet.Server alternative, enterprise package management, Docker NuGet hosting, ASP.NET Core NuGet server*
+
+![NuGet v3 API](https://img.shields.io/badge/NuGet-v3%20API-blue) ![ASP.NET Core](https://img.shields.io/badge/ASP.NET%20Core-9.0-purple) ![Docker](https://img.shields.io/badge/Docker-Ready-blue) ![Self-Hosted](https://img.shields.io/badge/Self--Hosted-✓-green) ![Private Repository](https://img.shields.io/badge/Private%20Repository-✓-orange) ![License](https://img.shields.io/badge/License-MIT-green) ![Enterprise Ready](https://img.shields.io/badge/Enterprise-Ready-red)
+
+## 📸 Screenshots & Interface Preview
+
+<div align="center">
+
+### 🏠 **Main Dashboard - Package Overview**
+*Browse and search your private NuGet packages with an intuitive web interface*
+
+![Main Dashboard](docs/screenshots/dashboard-preview.png)
+
+### 📦 **Package Details - Installation Commands**
+*Detailed package information with copy-to-clipboard install commands*
+
+![Package Details](docs/screenshots/package-details-preview.png)
+
+### ⬆️ **Package Upload - Web Interface**
+*Easy drag-and-drop package upload directly through the web browser*
+
+![Package Upload](docs/screenshots/upload-interface-preview.png)
+
+</div></div>
 
 ## 📋 Features
 
@@ -24,10 +51,13 @@ An open-source NuGet V3 server implementation with a web interface, built using 
 - **Environment Configuration** - Flexible configuration via appsettings.json or environment variables
 - **Open Source** - MIT licensed for free use, modification, and distribution
 
-## 🚀 Getting Started
+## 🚀 Getting Started - Deploy Your Private NuGet Server
+
+Set up your own **self-hosted NuGet package repository** in minutes! This guide will help you deploy a **private NuGet server** that serves as a powerful **NuGet.Server alternative** for your organization.
 
 ### Prerequisites
-- .NET 8.0 SDK
+- .NET 9.0 SDK (or .NET 8.0 for compatibility)
+- (Optional) Docker for containerized deployment
 - (Optional) Node.js for CSS development
 
 ### 1. Clone and Setup
@@ -141,12 +171,28 @@ All other branding elements (ProductName, RepositoryTitle, etc.) are fixed to ma
 - **Package Details** (`/Packages/Details/{id}`) - Detailed package information
 - **Upload** (`/Upload`) - Upload new packages via web interface
 
-### Community Use Cases
-This open-source server can be used for:
-- **Private Organizations** - Internal package repositories
-- **Open Source Projects** - Community package hosting
-- **Development Teams** - Shared package libraries
-- **Learning & Education** - Understanding NuGet server implementation
+### 🎯 Real-World Use Cases & Scenarios
+
+#### 🏢 **Enterprise & Corporate Scenarios**
+- **Internal Package Repository**: Host proprietary .NET libraries and shared components across development teams
+- **Microservices Architecture**: Centralized package management for distributed systems and service libraries
+- **CI/CD Pipeline Integration**: Automated package publishing and consumption in DevOps workflows
+- **Compliance & Security**: Keep sensitive packages on-premises to meet regulatory requirements (GDPR, HIPAA, SOX)
+- **Multi-Team Collaboration**: Share reusable components between different departments and projects
+
+#### 🌐 **Community & Open Source Scenarios**
+- **Open Source Project Hosting**: Alternative to nuget.org for community packages and pre-release versions
+- **Regional Package Mirrors**: Faster package access for specific geographic regions or organizations
+- **Educational Institutions**: Teaching package management and software distribution concepts
+- **Startup & Small Teams**: Cost-effective alternative to commercial NuGet hosting services
+- **Development Sandbox**: Testing and experimenting with package distribution before public release
+
+#### 🔧 **Technical & Development Scenarios**
+- **Offline Development**: Air-gapped environments where internet access is restricted
+- **Custom Package Workflows**: Specialized package validation, approval, and distribution processes
+- **Legacy System Support**: Hosting older package versions not available on public repositories
+- **Performance Optimization**: Reduced latency and bandwidth usage for frequently accessed packages
+- **Backup & Redundancy**: Secondary package repository for business continuity planning
 
 ## 🐳 Docker Deployment
 
@@ -253,8 +299,47 @@ See the [LICENSE](LICENSE) file for the complete license text.
 - Inspired by the official [nuget.org](https://www.nuget.org/) interface
 - Thanks to all contributors who help improve this project
 
+## 🔍 SEO & Discovery Keywords
+
+**Primary Keywords**: `self-hosted nuget server`, `private nuget repository`, `nuget.server alternative`, `enterprise package management`, `asp.net core nuget server`
+
+**Secondary Keywords**: `docker nuget hosting`, `private package repository`, `nuget v3 server`, `open source nuget server`, `corporate nuget hosting`, `internal package management`, `nuget server implementation`, `package repository hosting`
+
+**Technology Stack**: `ASP.NET Core`, `C#`, `Docker`, `NuGet v3 API`, `Tailwind CSS`, `Enterprise Ready`, `Self-Hosted`, `Open Source`
+
 ---
 
-*An open-source NuGet server implementation for the .NET community.*
+## 🌟 Support
+
+If you find this project useful, please consider giving it a ⭐️ on GitHub to help others discover it!
+
+## 🌟 Why Choose Nupack Server?
+
+### ✅ **vs. NuGet.Server (Official)**
+- ✅ Modern ASP.NET Core 9 (vs. legacy .NET Framework)
+- ✅ Web interface included (vs. API-only)
+- ✅ Docker support (vs. IIS-only)
+- ✅ Active development (vs. minimal updates)
+- ✅ Enterprise features (vs. basic functionality)
+
+### ✅ **vs. Commercial Solutions**
+- ✅ **Free & Open Source** (vs. expensive licensing)
+- ✅ **Full control** (vs. vendor lock-in)
+- ✅ **Customizable** (vs. fixed features)
+- ✅ **Self-hosted** (vs. cloud dependency)
+- ✅ **Community-driven** (vs. corporate priorities)
+
+### ✅ **vs. Other Open Source Alternatives**
+- ✅ **Lightweight & Fast** (optimized for performance)
+- ✅ **Easy deployment** (Docker + simple configuration)
+- ✅ **Modern UI** (responsive web interface)
+- ✅ **Well documented** (comprehensive guides)
+- ✅ **Active community** (regular updates & support)
+
+---
+
+*A modern, **self-hosted NuGet server** and **private package repository** solution for the .NET community.*
+
+**🚀 Deploy your private NuGet server today • 🔒 Keep your packages secure • 💰 Save on hosting costs**
 
 **🤝 Contributions welcome • 📄 MIT Licensed • 🌟 Made by the community, for the community**
