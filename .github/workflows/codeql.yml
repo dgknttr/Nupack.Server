@@ -1,38 +1,115 @@
-name: "CodeQL"
+name: "CodeQL Security Analysis"
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - '*.sln'
+      - '**/*.csproj'
+      - '.github/workflows/codeql.yml'
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - '*.sln'
+      - '**/*.csproj'
+      - '.github/workflows/codeql.yml'
   schedule:
+    # Run weekly on Mondays at 2:30 AM UTC
     - cron: '30 2 * * 1'
+  workflow_dispatch:
+    inputs:
+      languages:
+        description: 'Languages to analyze (comma-separated)'
+        required: false
+        default: 'csharp,javascript-typescript'
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
 
 jobs:
   analyze:
-    name: Analyze
+    name: CodeQL Analysis
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'c', 'cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'swift', 'actions' ]
+        # Only analyze languages actually used in Nupack.Server
+        language: [ 'csharp', 'javascript-typescript' ]
+        include:
+          - language: csharp
+            build-mode: manual
+          - language: javascript-typescript
+            build-mode: none
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET
+      if: matrix.language == 'csharp'
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
+        dotnet-quality: 'ga'
+
+    - name: Cache NuGet packages
+      if: matrix.language == 'csharp'
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
 
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v3
       with:
         languages: ${{ matrix.language }}
-        # build-mode: autobuild  # Opsiyonel: derlemeli diller için
+        build-mode: ${{ matrix.build-mode }}
+        # Enhanced security queries for enterprise use
+        queries: +security-and-quality
+        config: |
+          name: "Nupack Server CodeQL Config"
+          queries:
+            - uses: security-and-quality
+            - uses: security-experimental
+          paths-ignore:
+            - "tests/**"
+            - "**/*.min.js"
+            - "**/node_modules/**"
+            - "**/wwwroot/lib/**"
 
-    - name: Autobuild
-      if: matrix.language != 'javascript-typescript' && matrix.language != 'python' && matrix.language != 'ruby' && matrix.language != 'actions'
-      uses: github/codeql-action/autobuild@v3
+    - name: Restore dependencies
+      if: matrix.language == 'csharp'
+      run: dotnet restore
+
+    - name: Build solution
+      if: matrix.language == 'csharp'
+      run: |
+        dotnet build --no-restore --configuration Release --verbosity minimal
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
       with:
+        category: "/language:${{ matrix.language }}"
         upload: true
+        # Add detailed output for debugging
+        output: sarif-results
+
+    - name: Upload CodeQL results as artifact
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: codeql-results-${{ matrix.language }}
+        path: sarif-results
+        retention-days: 30
