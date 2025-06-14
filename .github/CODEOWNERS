@@ -1,0 +1,41 @@
+# Global code owners
+# Primary maintainer and future nupack-team
+* @dgknttr @nupack-team
+
+# Core API components
+/src/Nupack.Server.Api/ @dgknttr @nupack-team
+/src/Nupack.Server.Api/Services/ @dgknttr @nupack-team
+/src/Nupack.Server.Api/Models/ @dgknttr @nupack-team
+
+# Web interface
+/src/Nupack.Server.Web/ @dgknttr @nupack-team
+
+# Configuration files
+*.json @dgknttr @nupack-team
+*.yml @dgknttr @nupack-team
+*.yaml @dgknttr @nupack-team
+
+# Documentation
+/docs/ @dgknttr @nupack-team
+README.md @dgknttr @nupack-team
+CONTRIBUTING.md @dgknttr @nupack-team
+SECURITY.md @dgknttr @nupack-team
+
+# CI/CD and deployment
+/.github/ @dgknttr @nupack-team
+/Dockerfile @dgknttr @nupack-team
+/docker-compose.yml @dgknttr @nupack-team
+
+# Security sensitive files (requires both maintainer and team approval)
+/SECURITY.md @dgknttr @nupack-team
+/.github/workflows/ @dgknttr @nupack-team
+
+# Package and dependency files
+*.csproj @dgknttr @nupack-team
+*.sln @dgknttr @nupack-team
+/src/*/appsettings*.json @dgknttr @nupack-team
+
+# Critical security and infrastructure files (extra protection)
+/.github/workflows/security.yml @dgknttr @nupack-team
+/.github/dependabot.yml @dgknttr @nupack-team
+/.github/settings.yml @dgknttr @nupack-team
