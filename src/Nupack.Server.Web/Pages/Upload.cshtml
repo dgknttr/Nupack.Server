@@ -1,0 +1,304 @@
+@page
+@model Nupack.Server.Web.Pages.UploadModel
+@{
+    ViewData["Title"] = "Upload Package";
+}
+
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <div class="flex justify-center mb-6">
+            <div class="w-16 h-16 bg-gradient-to-br from-nuget-blue to-nuget-blue-light rounded-2xl flex items-center justify-center shadow-lg">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+                </svg>
+            </div>
+        </div>
+        <h1 class="text-3xl font-bold text-gray-900 mb-4">
+            Upload Package
+        </h1>
+        <p class="text-gray-600 max-w-2xl mx-auto">
+            Upload your .nupkg files to the private repository. 
+            Make sure your package follows NuGet packaging guidelines.
+        </p>
+    </div>
+
+    <!-- Upload Form -->
+    <div class="card mb-8">
+        <form method="post" enctype="multipart/form-data" class="space-y-6">
+            <!-- API Key Input -->
+            <div>
+                <label asp-for="ApiKey" class="block text-sm font-medium text-gray-700 mb-2">
+                    API Key (Optional)
+                </label>
+                <div class="relative">
+                    <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-3a1 1 0 011-1h2.586l6.243-6.243A6 6 0 0121 9z"></path>
+                    </svg>
+                    <input asp-for="ApiKey" type="password" placeholder="Enter API key if required..." 
+                           class="w-full pl-10 pr-4 py-2 input-field" />
+                </div>
+                <p class="text-xs text-gray-500 mt-1">
+                    Leave empty if no authentication is required
+                </p>
+                <span asp-validation-for="ApiKey" class="text-red-600 text-sm"></span>
+            </div>
+
+            <!-- File Upload Area -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Package File (.nupkg)
+                </label>
+                
+                <div class="relative border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-all duration-200 min-h-[200px] flex flex-col justify-center"
+                     id="drop-zone">
+                    <svg class="w-12 h-12 text-gray-400 mx-auto mb-4 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+                    </svg>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2 transition-colors duration-200">
+                        Drop your .nupkg file here
+                    </h3>
+                    <p class="text-gray-600 mb-4 transition-colors duration-200">
+                        or click to browse and select a file
+                    </p>
+                    <input asp-for="PackageFile" type="file" accept=".nupkg"
+                           class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                           id="file-input" />
+                    <button type="button" onclick="document.getElementById('file-input').click()"
+                            class="btn-primary mx-auto">
+                        Select File
+                    </button>
+
+                    <!-- Drag overlay indicator -->
+                    <div class="absolute inset-0 bg-blue-50 border-2 border-blue-500 border-solid rounded-lg opacity-0 transition-opacity duration-200 pointer-events-none flex items-center justify-center"
+                         id="drag-overlay">
+                        <div class="text-center">
+                            <svg class="w-16 h-16 text-blue-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+                            </svg>
+                            <p class="text-blue-700 font-medium">Drop file here</p>
+                        </div>
+                    </div>
+                </div>
+                <span asp-validation-for="PackageFile" class="text-red-600 text-sm"></span>
+            </div>
+
+            <!-- Selected File Display -->
+            <div id="selected-file" class="hidden">
+                <div class="border border-gray-300 rounded-lg p-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 bg-nuget-blue rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.291-1.1-5.5-2.709"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h4 id="file-name" class="font-medium text-gray-900"></h4>
+                                <p id="file-size" class="text-sm text-gray-500"></p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="removeFile()" 
+                                class="p-2 text-gray-400 hover:text-red-500 transition-colors duration-200">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upload Button -->
+            <div class="flex justify-end">
+                <button type="submit" class="btn-primary flex items-center" id="upload-btn">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+                    </svg>
+                    Upload Package
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Upload Result -->
+    @if (!string.IsNullOrEmpty(Model.Message))
+    {
+        <div class="card @(Model.IsSuccess ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50")">
+            <div class="flex items-start space-x-3">
+                @if (Model.IsSuccess)
+                {
+                    <svg class="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                }
+                else
+                {
+                    <svg class="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                }
+                <div>
+                    <h3 class="font-medium @(Model.IsSuccess ? "text-green-900" : "text-red-900")">
+                        @(Model.IsSuccess ? "Upload Successful" : "Upload Failed")
+                    </h3>
+                    <p class="text-sm @(Model.IsSuccess ? "text-green-700" : "text-red-700")">
+                        @Model.Message
+                    </p>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Guidelines -->
+    <div class="card">
+        <div class="flex items-start space-x-3">
+            <svg class="w-6 h-6 text-nuget-blue flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <div>
+                <h3 class="font-medium text-gray-900 mb-3">
+                    Package Upload Guidelines
+                </h3>
+                <ul class="space-y-2 text-sm text-gray-600">
+                    <li class="flex items-start space-x-2">
+                        <span class="w-1.5 h-1.5 bg-nuget-blue rounded-full mt-2 flex-shrink-0"></span>
+                        <span>Only .nupkg files are accepted</span>
+                    </li>
+                    <li class="flex items-start space-x-2">
+                        <span class="w-1.5 h-1.5 bg-nuget-blue rounded-full mt-2 flex-shrink-0"></span>
+                        <span>Package must have a valid .nuspec manifest</span>
+                    </li>
+                    <li class="flex items-start space-x-2">
+                        <span class="w-1.5 h-1.5 bg-nuget-blue rounded-full mt-2 flex-shrink-0"></span>
+                        <span>Package ID and version must be unique</span>
+                    </li>
+                    <li class="flex items-start space-x-2">
+                        <span class="w-1.5 h-1.5 bg-nuget-blue rounded-full mt-2 flex-shrink-0"></span>
+                        <span>Maximum file size: 100MB</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const selectedFileDiv = document.getElementById('selected-file');
+    const fileNameSpan = document.getElementById('file-name');
+    const fileSizeSpan = document.getElementById('file-size');
+    const dragOverlay = document.getElementById('drag-overlay');
+
+    let dragCounter = 0; // Track drag enter/leave events
+
+    // Prevent default drag behaviors on document
+    document.addEventListener('dragover', (e) => e.preventDefault());
+    document.addEventListener('drop', (e) => e.preventDefault());
+
+    // Drag and drop functionality
+    dropZone.addEventListener('dragenter', (e) => {
+        e.preventDefault();
+        dragCounter++;
+        if (dragOverlay) {
+            dragOverlay.style.opacity = '1';
+        }
+    });
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+    });
+
+    dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dragCounter--;
+        if (dragCounter === 0 && dragOverlay) {
+            dragOverlay.style.opacity = '0';
+        }
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dragCounter = 0;
+        if (dragOverlay) {
+            dragOverlay.style.opacity = '0';
+        }
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            handleFileSelect(files[0], true); // true indicates drag & drop
+        }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleFileSelect(e.target.files[0], false); // false indicates file input
+        }
+    });
+
+    function handleFileSelect(file, isDragDrop = false) {
+        if (file.name.endsWith('.nupkg')) {
+            // Update UI
+            fileNameSpan.textContent = file.name;
+            fileSizeSpan.textContent = formatFileSize(file.size);
+            selectedFileDiv.classList.remove('hidden');
+            dropZone.style.display = 'none';
+
+            // If drag & drop, sync with file input
+            if (isDragDrop) {
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                fileInput.files = dataTransfer.files;
+            }
+
+            showToast(`File "${file.name}" selected successfully!`, 'success');
+        } else {
+            showToast('Please select a valid .nupkg file', 'error');
+        }
+    }
+
+    function removeFile() {
+        fileInput.value = '';
+        selectedFileDiv.classList.add('hidden');
+        dropZone.style.display = 'block';
+        showToast('File removed', 'info');
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function showToast(message, type) {
+        const existingToasts = document.querySelectorAll('.toast-notification');
+        existingToasts.forEach(toast => toast.remove());
+
+        const toast = document.createElement('div');
+        toast.className = `toast-notification fixed top-4 right-4 z-50 px-4 py-2 rounded-lg text-white font-medium transition-all duration-300 transform translate-x-full ${
+            type === 'success' ? 'bg-green-500' :
+            type === 'error' ? 'bg-red-500' :
+            type === 'info' ? 'bg-blue-500' : 'bg-gray-500'
+        }`;
+        toast.textContent = message;
+
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.transform = 'translateX(0)';
+        }, 10);
+
+        setTimeout(() => {
+            toast.style.transform = 'translateX(full)';
+            toast.style.opacity = '0';
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 300);
+        }, 3000);
+    }
+</script>

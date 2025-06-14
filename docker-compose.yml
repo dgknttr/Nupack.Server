@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  nupack-server:
+    build: .
+    ports:
+      - "5003:5003"  # NuGet API server (HTTP)
+      - "5001:5001"  # NuGet API server (HTTPS)
+      - "5002:5002"  # Web UI (HTTPS)
+      - "5004:5004"  # Web UI (HTTP)
+    volumes:
+      - ./data:/app/data  # Persistent data storage
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Branding__ProductName=Nupack Server
+      - Branding__CompanyName=Your Organization
+      - Branding__RepositoryTitle=Nupack Private Repository
+      - Branding__NugetSourceName=Nupack Server
+      - Branding__NugetSourceUrl=http://localhost:5003/v3/index.json
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5003/health", "&&", "curl", "-f", "http://localhost:5002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s

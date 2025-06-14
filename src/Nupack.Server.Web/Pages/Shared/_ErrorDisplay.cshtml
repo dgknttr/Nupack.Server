@@ -1,0 +1,196 @@
+@model dynamic
+
+@{
+    var errorType = Model?.ErrorType ?? "error"; // "error", "warning", "info", "not-found", "empty"
+    var title = Model?.Title ?? "Something went wrong";
+    var message = Model?.Message ?? "An unexpected error occurred. Please try again.";
+    var showRetry = Model?.ShowRetry ?? true;
+    var retryUrl = Model?.RetryUrl ?? "";
+    var showHomeLink = Model?.ShowHomeLink ?? true;
+    var icon = Model?.Icon ?? "";
+    var size = Model?.Size ?? "default"; // "default", "large", "compact"
+}
+
+<div class="error-display @(size == "large" ? "py-16" : size == "compact" ? "py-6" : "py-12")">
+    <div class="text-center max-w-md mx-auto">
+        <!-- Icon -->
+        <div class="@(size == "large" ? "w-20 h-20 mb-6" : size == "compact" ? "w-12 h-12 mb-4" : "w-16 h-16 mb-6") mx-auto rounded-full flex items-center justify-center
+                    @(errorType == "error" ? "bg-red-100" : 
+                      errorType == "warning" ? "bg-yellow-100" : 
+                      errorType == "info" ? "bg-blue-100" : 
+                      errorType == "not-found" ? "bg-gray-100" : 
+                      errorType == "empty" ? "bg-gray-100" : "bg-gray-100")">
+            
+            @if (!string.IsNullOrEmpty(icon))
+            {
+                @Html.Raw(icon)
+            }
+            else
+            {
+                @switch (errorType)
+                {
+                    case "error":
+                        <svg class="@(size == "large" ? "w-10 h-10" : size == "compact" ? "w-6 h-6" : "w-8 h-8") text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        break;
+                    case "warning":
+                        <svg class="@(size == "large" ? "w-10 h-10" : size == "compact" ? "w-6 h-6" : "w-8 h-8") text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                        </svg>
+                        break;
+                    case "info":
+                        <svg class="@(size == "large" ? "w-10 h-10" : size == "compact" ? "w-6 h-6" : "w-8 h-8") text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        break;
+                    case "not-found":
+                        <svg class="@(size == "large" ? "w-10 h-10" : size == "compact" ? "w-6 h-6" : "w-8 h-8") text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.291-1.1-5.5-2.709"></path>
+                        </svg>
+                        break;
+                    case "empty":
+                        <svg class="@(size == "large" ? "w-10 h-10" : size == "compact" ? "w-6 h-6" : "w-8 h-8") text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                        </svg>
+                        break;
+                    default:
+                        <svg class="@(size == "large" ? "w-10 h-10" : size == "compact" ? "w-6 h-6" : "w-8 h-8") text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        break;
+                }
+            }
+        </div>
+
+        <!-- Title -->
+        <h3 class="@(size == "large" ? "text-2xl" : size == "compact" ? "text-lg" : "text-xl") font-medium text-gray-900 mb-2">
+            @title
+        </h3>
+
+        <!-- Message -->
+        <p class="@(size == "compact" ? "text-sm" : "text-base") text-gray-600 mb-6">
+            @message
+        </p>
+
+        <!-- Actions -->
+        <div class="flex flex-col sm:flex-row gap-3 justify-center">
+            @if (showRetry)
+            {
+                @if (!string.IsNullOrEmpty(retryUrl))
+                {
+                    <a href="@retryUrl" class="btn-primary inline-flex items-center justify-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        Try Again
+                    </a>
+                }
+                else
+                {
+                    <button onclick="window.location.reload()" class="btn-primary inline-flex items-center justify-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        Try Again
+                    </button>
+                }
+            }
+
+            @if (showHomeLink)
+            {
+                <a asp-page="/Index" class="btn-secondary inline-flex items-center justify-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                    </svg>
+                    Go Home
+                </a>
+            }
+        </div>
+
+        <!-- Additional Help Text -->
+        @if (errorType == "not-found")
+        {
+            <div class="mt-6 text-sm text-gray-500">
+                <p>The package you're looking for might have been:</p>
+                <ul class="mt-2 space-y-1">
+                    <li>• Removed or deleted</li>
+                    <li>• Moved to a different repository</li>
+                    <li>• Misspelled in the URL</li>
+                </ul>
+            </div>
+        }
+        else if (errorType == "empty")
+        {
+            <div class="mt-6 text-sm text-gray-500">
+                <p>Try:</p>
+                <ul class="mt-2 space-y-1">
+                    <li>• Adjusting your search terms</li>
+                    <li>• Including prerelease packages</li>
+                    <li>• Browsing all available packages</li>
+                </ul>
+            </div>
+        }
+        else if (errorType == "error")
+        {
+            <div class="mt-6 text-sm text-gray-500">
+                <p>If this problem persists, please contact your system administrator.</p>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Predefined Error Types for Easy Use -->
+@functions {
+    public static object NotFound(string packageName = "")
+    {
+        return new {
+            ErrorType = "not-found",
+            Title = "Package Not Found",
+            Message = string.IsNullOrEmpty(packageName)
+                ? "The package you're looking for doesn't exist or has been removed."
+                : $"The package '{packageName}' doesn't exist or has been removed.",
+            ShowRetry = false,
+            RetryUrl = "",
+            ShowHomeLink = true
+        };
+    }
+
+    public static object Empty(string searchTerm = "")
+    {
+        return new {
+            ErrorType = "empty",
+            Title = "No Packages Found",
+            Message = string.IsNullOrEmpty(searchTerm)
+                ? "No packages are available in this repository."
+                : $"No packages found matching '{searchTerm}'.",
+            ShowRetry = false,
+            RetryUrl = "",
+            ShowHomeLink = true
+        };
+    }
+
+    public static object ServerError()
+    {
+        return new {
+            ErrorType = "error",
+            Title = "Server Error",
+            Message = "The NuGet server is currently unavailable. Please try again later.",
+            ShowRetry = true,
+            RetryUrl = "",
+            ShowHomeLink = true
+        };
+    }
+
+    public static object NetworkError()
+    {
+        return new {
+            ErrorType = "warning",
+            Title = "Connection Problem",
+            Message = "Unable to connect to the NuGet server. Please check your connection and try again.",
+            ShowRetry = true,
+            RetryUrl = "",
+            ShowHomeLink = true
+        };
+    }
+}

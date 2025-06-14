@@ -1,0 +1,58 @@
+@{
+    // Initial state - will be updated by JavaScript
+}
+
+<div id="health-status" class="flex items-center space-x-2" title="Server health status">
+    <div class="w-2 h-2 rounded-full bg-gray-400 transition-colors duration-200"></div>
+    <span class="text-xs font-medium text-gray-500 transition-colors duration-200">
+        Checking...
+    </span>
+</div>
+
+<script>
+    // Health status check functionality
+    async function checkHealthStatus() {
+        const healthStatus = document.getElementById('health-status');
+        if (!healthStatus) return;
+
+        const statusDot = healthStatus.querySelector('div');
+        const statusText = healthStatus.querySelector('span');
+
+        if (!statusDot || !statusText) return;
+
+        try {
+            const response = await fetch('/health', {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' },
+                cache: 'no-cache'
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const isHealthy = data.status === 'healthy' || data.status === 'Healthy';
+
+                statusDot.className = `w-2 h-2 rounded-full transition-colors duration-200 ${isHealthy ? 'bg-green-500' : 'bg-yellow-500'}`;
+                statusText.textContent = isHealthy ? 'Healthy' : 'Warning';
+                statusText.className = `text-xs font-medium transition-colors duration-200 ${isHealthy ? 'text-green-600' : 'text-yellow-600'}`;
+                healthStatus.title = `Server status: ${isHealthy ? 'Healthy' : 'Warning'} (Last checked: ${new Date().toLocaleTimeString()})`;
+            } else {
+                setOfflineStatus(statusDot, statusText, healthStatus, `HTTP ${response.status}`);
+            }
+        } catch (error) {
+            setOfflineStatus(statusDot, statusText, healthStatus, 'Connection failed');
+        }
+    }
+
+    function setOfflineStatus(statusDot, statusText, healthStatus, reason) {
+        statusDot.className = 'w-2 h-2 rounded-full transition-colors duration-200 bg-red-500';
+        statusText.textContent = 'Offline';
+        statusText.className = 'text-xs font-medium transition-colors duration-200 text-red-600';
+        healthStatus.title = `Server status: Offline (${reason}) - Last checked: ${new Date().toLocaleTimeString()}`;
+    }
+
+    // Check health on page load and every 30 seconds
+    document.addEventListener('DOMContentLoaded', function() {
+        checkHealthStatus();
+        setInterval(checkHealthStatus, 30000);
+    });
+</script>

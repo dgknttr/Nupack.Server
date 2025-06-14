@@ -1,0 +1,448 @@
+openapi: 3.0.1
+info:
+  title: Nupack Server API
+  description: |
+    # Nupack Server API
+
+    A modern, high-performance NuGet package server built with .NET 8.
+
+    ## Features
+    - 📦 **Package Management**: Upload, download, search, and browse NuGet packages
+    - 🔍 **Advanced Search**: Full-text search with pagination support
+    - 🚀 **High Performance**: Built with .NET 8 Minimal APIs for optimal throughput
+    - 🔒 **Secure**: Input validation, error handling, and security best practices
+    - 📊 **Monitoring**: Comprehensive logging and structured responses
+
+    ## Authentication
+    Currently, no authentication is required. For production deployments, consider implementing API key or OAuth-based authentication.
+
+    ## Rate Limiting
+    No rate limiting is currently implemented. Consider adding rate limiting for production use.
+
+    ## Support
+    For issues and questions, please visit our [GitHub repository](https://github.com/yourorg/nupack-server).
+  contact:
+    name: Development Team
+    email: dev@yourcompany.com
+    url: https://github.com/yourorg/nupack-server
+  license:
+    name: MIT License
+    url: https://opensource.org/licenses/MIT
+  version: 1.0.0
+servers:
+- url: http://localhost:5000
+  description: Development Server
+- url: https://nuget.yourcompany.com
+  description: Production Server
+paths:
+  /api/v1/packages:
+    get:
+      tags:
+      - Package Management
+      summary: Search and list NuGet packages
+      description: |
+        Searches for packages based on query parameters with pagination support.
+
+        **Parameters:**
+        - `q` (optional): Search query to filter packages by ID, description, or tags
+        - `skip` (optional): Number of packages to skip for pagination (default: 0)
+        - `take` (optional): Number of packages to return (default: 20, max: 100)
+
+        **Search Behavior:**
+        - If no query is provided, returns all packages
+        - Search is case-insensitive and matches package ID, description, and tags
+        - Results are ordered by creation date (newest first)
+
+        **Example Usage:**
+        ```bash
+        # Get all packages
+        curl 'http://localhost:5000/api/v1/packages'
+
+        # Search for packages containing 'json'
+        curl 'http://localhost:5000/api/v1/packages?q=json'
+
+        # Get packages with pagination
+        curl 'http://localhost:5000/api/v1/packages?skip=20&take=10'
+        ```
+      parameters:
+      - name: q
+        in: query
+        description: Search query to filter packages
+        schema:
+          type: string
+      - name: skip
+        in: query
+        description: Number of packages to skip for pagination
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: take
+        in: query
+        description: Number of packages to return
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        '200':
+          description: Search results returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackageListApiResponse'
+        '400':
+          description: Invalid search parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+    post:
+      tags:
+      - Package Management
+      summary: Upload a NuGet package
+      description: |
+        Uploads a new NuGet package (.nupkg file) to the server.
+
+        **Requirements:**
+        - File must be a valid .nupkg file
+        - Package ID and version combination must be unique
+        - File size must be within configured limits
+
+        **Process:**
+        1. Validates the uploaded file format
+        2. Extracts package metadata from the .nuspec file
+        3. Stores the package file in the configured storage location
+        4. Updates the package index for search functionality
+
+        **Example Usage:**
+        ```bash
+        curl -X POST 'http://localhost:5000/api/v1/packages' \
+          -H 'Content-Type: multipart/form-data' \
+          -F 'package=@MyPackage.1.0.0.nupkg'
+        ```
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                package:
+                  type: string
+                  format: binary
+                  description: The .nupkg file to upload
+              required:
+              - package
+      responses:
+        '200':
+          description: Package uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackageMetadataApiResponse'
+        '400':
+          description: Invalid package or upload error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+        '409':
+          description: Package already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+  /api/v1/packages/{id}/{version}:
+    get:
+      tags:
+      - Package Management
+      summary: Get package metadata
+      description: |
+        Retrieves detailed metadata for a specific package version.
+
+        **Returns:**
+        - Package ID and version
+        - Title and description
+        - Authors and tags
+        - Creation date and file size
+        - Download information
+
+        **Example Usage:**
+        ```bash
+        curl 'http://localhost:5000/api/v1/packages/MyPackage/1.0.0'
+        ```
+      parameters:
+      - name: id
+        in: path
+        description: Package ID
+        required: true
+        schema:
+          type: string
+      - name: version
+        in: path
+        description: Package version
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Package metadata retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackageMetadataApiResponse'
+        '404':
+          description: Package not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+    delete:
+      tags:
+      - Package Management
+      summary: Delete a package
+      description: |
+        Deletes a specific package version from the server.
+
+        **Warning:** This operation is irreversible. The package file and metadata will be permanently removed.
+
+        **Example Usage:**
+        ```bash
+        curl -X DELETE 'http://localhost:5000/api/v1/packages/MyPackage/1.0.0'
+        ```
+      parameters:
+      - name: id
+        in: path
+        description: Package ID
+        required: true
+        schema:
+          type: string
+      - name: version
+        in: path
+        description: Package version
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Package deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BooleanApiResponse'
+        '404':
+          description: Package not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+  /api/v1/packages/{id}/{version}/download:
+    get:
+      tags:
+      - Package Management
+      summary: Download package file
+      description: |
+        Downloads the .nupkg file for a specific package version.
+
+        **Returns:** Binary .nupkg file with appropriate content headers.
+
+        **Example Usage:**
+        ```bash
+        # Download package
+        curl -O 'http://localhost:5000/api/v1/packages/MyPackage/1.0.0/download'
+
+        # Download with custom filename
+        curl -o 'MyCustomName.nupkg' 'http://localhost:5000/api/v1/packages/MyPackage/1.0.0/download'
+        ```
+      parameters:
+      - name: id
+        in: path
+        description: Package ID
+        required: true
+        schema:
+          type: string
+      - name: version
+        in: path
+        description: Package version
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Package file download
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Package not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+components:
+  schemas:
+    PackageMetadata:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Package identifier
+          example: "MyPackage"
+        version:
+          type: string
+          description: Package version
+          example: "1.0.0"
+        title:
+          type: string
+          nullable: true
+          description: Package title
+          example: "My Package"
+        description:
+          type: string
+          nullable: true
+          description: Package description
+          example: "A sample NuGet package"
+        authors:
+          type: string
+          nullable: true
+          description: Package authors
+          example: "John Doe, Jane Smith"
+        tags:
+          type: string
+          nullable: true
+          description: Package tags
+          example: "utility, helper, tools"
+        created:
+          type: string
+          format: date-time
+          description: Package creation timestamp
+          example: "2024-12-04T10:30:00Z"
+        size:
+          type: integer
+          format: int64
+          description: Package file size in bytes
+          example: 1048576
+        fileName:
+          type: string
+          description: Package file name
+          example: "MyPackage.1.0.0.nupkg"
+      required:
+      - id
+      - version
+      - created
+      - size
+      - fileName
+    PackageListResponse:
+      type: object
+      properties:
+        packages:
+          type: array
+          items:
+            $ref: '#/components/schemas/PackageMetadata'
+          description: List of packages
+        totalCount:
+          type: integer
+          format: int32
+          description: Total number of packages matching the search criteria
+          example: 42
+      required:
+      - packages
+      - totalCount
+    PackageMetadataApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Indicates if the operation was successful
+          example: true
+        data:
+          $ref: '#/components/schemas/PackageMetadata'
+        message:
+          type: string
+          nullable: true
+          description: Optional message
+          example: "Package retrieved successfully"
+      required:
+      - success
+    PackageListApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Indicates if the operation was successful
+          example: true
+        data:
+          $ref: '#/components/schemas/PackageListResponse'
+        message:
+          type: string
+          nullable: true
+          description: Optional message
+      required:
+      - success
+    BooleanApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Indicates if the operation was successful
+          example: true
+        data:
+          type: boolean
+          description: Operation result
+          example: true
+        message:
+          type: string
+          nullable: true
+          description: Optional message
+          example: "Package deleted successfully"
+      required:
+      - success
+    ErrorApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Always false for error responses
+          example: false
+        data:
+          nullable: true
+          description: Always null for error responses
+        message:
+          type: string
+          description: Error message
+          example: "Package not found"
+      required:
+      - success
+      - message

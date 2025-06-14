@@ -1,0 +1,159 @@
+@using Microsoft.Extensions.Options
+@using Nupack.Server.Web.Models
+@inject IOptions<BrandingOptions> BrandingOptionsAccessor
+@{
+    var brandingOptions = BrandingOptionsAccessor.Value;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - @brandingOptions.ProductName</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'nuget-blue': '#004880',
+                        'nuget-blue-light': '#0078d4',
+                        'nuget-blue-dark': '#003366'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+    <header class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo and Brand -->
+                <div class="flex items-center">
+                    <a asp-page="/Index" class="flex items-center space-x-3">
+                        <div class="w-8 h-8 bg-nuget-blue rounded-lg flex items-center justify-center">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h1 class="text-xl font-bold text-gray-900">@brandingOptions.ProductName</h1>
+                            <p class="text-xs text-gray-500 -mt-1">@brandingOptions.HeaderBadgeText</p>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Navigation -->
+                <nav class="hidden md:flex items-center space-x-8">
+                    <a asp-page="/Index" class="text-gray-700 hover:text-nuget-blue transition-colors duration-200 font-medium">
+                        Browse
+                    </a>
+                    <a asp-page="/Search" class="text-gray-700 hover:text-nuget-blue transition-colors duration-200 font-medium">
+                        Search
+                    </a>
+                    <a asp-page="/Upload" class="text-gray-700 hover:text-nuget-blue transition-colors duration-200 font-medium">
+                        Upload
+                    </a>
+                </nav>
+
+                <!-- Search Bar (Desktop) -->
+                <div class="hidden md:block flex-1 max-w-lg mx-8">
+                    <form asp-page="/Search" method="get" class="relative">
+                        <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                        <input type="text" name="q" value="@ViewData["SearchQuery"]" placeholder="Search packages..." 
+                               class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nuget-blue-light focus:border-transparent bg-white text-gray-900 placeholder-gray-500" />
+                    </form>
+                </div>
+
+                <!-- Health Status -->
+                <div class="flex items-center space-x-4">
+                    <div class="hidden sm:block">
+                        <partial name="_HealthStatusBadge" />
+                    </div>
+
+                    <!-- Mobile Menu Button -->
+                    <button id="mobile-menu-button" class="md:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors duration-200">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mobile Menu -->
+            <div id="mobile-menu" class="md:hidden hidden py-4 border-t border-gray-200">
+                <!-- Mobile Search -->
+                <form asp-page="/Search" method="get" class="mb-4">
+                    <div class="relative">
+                        <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                        <input type="text" name="q" value="@ViewData["SearchQuery"]" placeholder="Search packages..." 
+                               class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nuget-blue-light focus:border-transparent bg-white text-gray-900 placeholder-gray-500" />
+                    </div>
+                </form>
+
+                <!-- Mobile Navigation -->
+                <nav class="space-y-2">
+                    <a asp-page="/Index" class="block px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors duration-200 font-medium">
+                        Browse
+                    </a>
+                    <a asp-page="/Search" class="block px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors duration-200 font-medium">
+                        Search
+                    </a>
+                    <a asp-page="/Upload" class="block px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors duration-200 font-medium">
+                        Upload
+                    </a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1">
+        @RenderBody()
+    </main>
+
+    <footer class="bg-white border-t border-gray-200 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="flex items-center space-x-3 mb-4 md:mb-0">
+                    <div class="w-6 h-6 bg-nuget-blue rounded flex items-center justify-center">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                        </svg>
+                    </div>
+                    <span class="text-sm text-gray-600">@brandingOptions.ProductName - @brandingOptions.FooterText</span>
+                </div>
+                <div class="flex items-center space-x-6 text-sm text-gray-500">
+                    <a href="/swagger" target="_blank" class="hover:text-nuget-blue transition-colors duration-200">API Docs</a>
+                    <a href="/health" target="_blank" class="hover:text-nuget-blue transition-colors duration-200">Health Check</a>
+                    <span>&copy; 2024 @brandingOptions.CompanyName</span>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Mobile menu toggle
+        document.getElementById('mobile-menu-button').addEventListener('click', function() {
+            const menu = document.getElementById('mobile-menu');
+            menu.classList.toggle('hidden');
+        });
+
+
+    </script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

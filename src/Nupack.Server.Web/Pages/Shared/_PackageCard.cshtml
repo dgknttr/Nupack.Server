@@ -1,0 +1,182 @@
+@using Microsoft.Extensions.Options
+@using Nupack.Server.Web.Models
+@inject IOptions<BrandingOptions> BrandingOptionsAccessor
+@model Nupack.Server.Web.Models.PackageSearchResult
+
+@{
+    var brandingOptions = BrandingOptionsAccessor.Value;
+}
+
+<div class="card package-card group">
+    <div class="flex items-start justify-between mb-4">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-gradient-to-br from-nuget-blue to-nuget-blue-light rounded-lg flex items-center justify-center flex-shrink-0">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                </svg>
+            </div>
+            <div class="min-w-0 flex-1">
+                <h3 class="font-semibold text-gray-900 truncate group-hover:text-nuget-blue transition-colors duration-200">
+                    <a asp-page="/Packages/Details" asp-route-id="@Model.Id" class="hover:underline" title="View package details">
+                        @Model.DisplayTitle
+                    </a>
+                </h3>
+                <div class="flex items-center space-x-2 mt-1">
+                    <span class="text-sm text-gray-600">@($"v{Model.LatestVersion}")</span>
+                    @if (Model.IsPrerelease)
+                    {
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                            </svg>
+                            Prerelease
+                        </span>
+                    }
+                    @if (Model.HasMultipleVersions)
+                    {
+                        <a asp-page="/Packages/Details" asp-route-id="@Model.Id" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200 transition-colors duration-200">
+                            @Model.VersionCount version@(Model.VersionCount != 1 ? "s" : "")
+                        </a>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Description -->
+    <p class="text-gray-600 text-sm mb-4 line-clamp-3">
+        @Model.DisplayDescription
+    </p>
+
+    <!-- Metadata -->
+    <div class="space-y-2 mb-4">
+        @if (Model.Authors.Any())
+        {
+            <div class="flex items-center text-xs text-gray-500">
+                <svg class="w-3 h-3 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                </svg>
+                <span class="truncate">@Model.AuthorsDisplay</span>
+            </div>
+        }
+
+        @if (Model.Tags.Any())
+        {
+            <div class="flex items-start text-xs text-gray-500">
+                <svg class="w-3 h-3 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.99 1.99 0 013 12V7a4 4 0 014-4z"></path>
+                </svg>
+                <div class="flex flex-wrap gap-1 min-w-0">
+                    @foreach (var tag in Model.Tags.Take(3))
+                    {
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">@tag</span>
+                    }
+                    @if (Model.HasMoreTags)
+                    {
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-50 text-gray-600">+@Model.ExtraTagsCount</span>
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="flex items-center text-xs text-gray-500">
+            <svg class="w-3 h-3 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+            </svg>
+            <span>@Model.TotalDownloads.ToString("N0") download@(Model.TotalDownloads != 1 ? "s" : "")</span>
+        </div>
+    </div>
+
+    <!-- Install Command -->
+    <div class="bg-gray-50 border border-gray-200 rounded p-2">
+        <div class="flex items-center justify-between">
+            <div class="flex-1 min-w-0">
+                <div class="text-xs font-medium text-gray-700 mb-1">Install Command</div>
+                <div class="overflow-auto whitespace-nowrap rounded bg-gray-50 px-3 py-2 text-xs font-mono text-gray-800 border border-gray-200" id="install-command-@Model.Id">dotnet add package @Model.Id --version @Model.LatestVersion --source "@brandingOptions.NugetSourceName"</div>
+            </div>
+            <button onclick="copyInstallCommand('@Model.Id', '@Model.LatestVersion')"
+                    class="ml-2 p-1 text-gray-500 hover:text-nuget-blue transition-colors duration-200 flex-shrink-0"
+                    title="Copy install command"
+                    aria-label="Copy install command to clipboard">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex items-center justify-between pt-4 border-t border-gray-200">
+        <div class="flex items-center space-x-2">
+            <button onclick="copyInstallCommand('@Model.Id', '@Model.LatestVersion')"
+                    class="flex items-center space-x-1 px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-blue-600 hover:underline transition-all duration-200"
+                    title="Copy install command to clipboard">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                </svg>
+                <span>Copy Command</span>
+            </button>
+        </div>
+
+        <a asp-page="/Packages/Details" asp-route-id="@Model.Id"
+           class="flex items-center space-x-1 text-xs text-gray-400 hover:text-blue-600 hover:underline transition-all duration-200"
+           title="View package details">
+            <span>View Details</span>
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+            </svg>
+        </a>
+    </div>
+</div>
+
+<script>
+    function copyInstallCommand(packageId, version) {
+        const command = `dotnet add package ${packageId} --version ${version} --source "@brandingOptions.NugetSourceName"`;
+        navigator.clipboard.writeText(command).then(() => {
+            showToast(`✓ Install command for ${packageId} v${version} copied!`, 'success');
+
+            // Visual feedback on the button
+            const button = event.target.closest('button');
+            if (button) {
+                const originalTitle = button.title;
+                button.title = 'Copied!';
+                button.style.color = '#10b981'; // green-500
+                setTimeout(() => {
+                    button.title = originalTitle;
+                    button.style.color = '';
+                }, 2000);
+            }
+        }).catch(() => {
+            showToast('Failed to copy command', 'error');
+        });
+    }
+
+    function showToast(message, type) {
+        const existingToasts = document.querySelectorAll('.toast-notification');
+        existingToasts.forEach(toast => toast.remove());
+
+        const toast = document.createElement('div');
+        toast.className = `toast-notification fixed top-4 right-4 z-50 px-4 py-2 rounded-lg text-white font-medium transition-all duration-300 transform translate-x-full ${
+            type === 'success' ? 'bg-green-500' : 'bg-red-500'
+        }`;
+        toast.textContent = message;
+
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.transform = 'translateX(0)';
+        }, 10);
+
+        setTimeout(() => {
+            toast.style.transform = 'translateX(full)';
+            toast.style.opacity = '0';
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 300);
+        }, 3000);
+    }
+</script>
+
+

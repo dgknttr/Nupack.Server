@@ -1,0 +1,162 @@
+@model dynamic
+
+@{
+    var query = Model?.Query ?? ViewData["SearchQuery"] ?? "";
+    var includePrerelease = Model?.IncludePrerelease ?? false;
+    var showFilters = Model?.ShowFilters ?? true;
+    var placeholder = Model?.Placeholder ?? "Search packages...";
+    var size = Model?.Size ?? "default"; // "default", "large", "compact"
+}
+
+<div class="search-bar-container">
+    <form asp-page="/Search" method="get" class="space-y-4">
+        <!-- Main Search Input -->
+        <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg class="@(size == "large" ? "w-5 h-5" : "w-4 h-4") text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+            </div>
+            <input type="text" 
+                   name="q" 
+                   value="@query" 
+                   placeholder="@placeholder"
+                   class="@(size == "large" ? "pl-10 pr-12 py-3 text-lg" : size == "compact" ? "pl-8 pr-10 py-1.5 text-sm" : "pl-10 pr-12 py-2") w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nuget-blue-light focus:border-transparent bg-white text-gray-900 placeholder-gray-500 search-input"
+                   autocomplete="off" />
+            
+            @if (!string.IsNullOrEmpty(query))
+            {
+                <button type="button" 
+                        onclick="clearSearch()" 
+                        class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors duration-200">
+                    <svg class="@(size == "large" ? "w-5 h-5" : "w-4 h-4")" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            }
+        </div>
+
+        @if (showFilters)
+        {
+            <!-- Filters Section -->
+            <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <!-- Prerelease Toggle -->
+                <div class="flex items-center">
+                    <input type="checkbox" 
+                           id="includePrerelease" 
+                           name="includePrerelease" 
+                           value="true" 
+                           @(includePrerelease ? "checked" : "")
+                           class="rounded border-gray-300 text-nuget-blue focus:ring-nuget-blue-light" />
+                    <label for="includePrerelease" class="ml-2 text-sm text-gray-700">
+                        Include prerelease
+                    </label>
+                </div>
+
+                <!-- Sort Options -->
+                <div class="flex items-center space-x-2">
+                    <label for="sortBy" class="text-sm text-gray-700">Sort by:</label>
+                    <select name="sortBy" id="sortBy" class="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-nuget-blue-light">
+                        <option value="relevance">Relevance</option>
+                        <option value="downloads">Downloads</option>
+                        <option value="name">Name</option>
+                        <option value="created">Recently created</option>
+                        <option value="updated">Recently updated</option>
+                    </select>
+                </div>
+
+                <!-- Search Button -->
+                <button type="submit" 
+                        class="@(size == "compact" ? "px-3 py-1.5 text-sm" : "px-4 py-2") btn-primary flex items-center space-x-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    <span>Search</span>
+                </button>
+            </div>
+        }
+        else
+        {
+            <!-- Hidden inputs for maintaining state -->
+            <input type="hidden" name="includePrerelease" value="@includePrerelease.ToString().ToLower()" />
+        }
+    </form>
+
+    @if (!string.IsNullOrEmpty(query))
+    {
+        <!-- Search Results Info -->
+        <div class="mt-4 text-sm text-gray-600">
+            <span>Search results for: </span>
+            <span class="font-medium text-gray-900">"@query"</span>
+            @if (includePrerelease)
+            {
+                <span class="ml-2 badge-secondary">Including prerelease</span>
+            }
+        </div>
+    }
+</div>
+
+<!-- Quick Search Suggestions (Optional) -->
+@if (string.IsNullOrEmpty(query) && showFilters)
+{
+    <div class="mt-4">
+        <div class="text-sm text-gray-500 mb-2">Popular searches:</div>
+        <div class="flex flex-wrap gap-2">
+            <button type="button" onclick="quickSearch('TestPackage')" class="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full transition-colors duration-200">
+                TestPackage
+            </button>
+            <button type="button" onclick="quickSearch('Microsoft')" class="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full transition-colors duration-200">
+                Microsoft
+            </button>
+            <button type="button" onclick="quickSearch('System')" class="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full transition-colors duration-200">
+                System
+            </button>
+            <button type="button" onclick="quickSearch('Newtonsoft')" class="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full transition-colors duration-200">
+                Newtonsoft
+            </button>
+        </div>
+    </div>
+}
+
+<script>
+    function clearSearch() {
+        const searchInput = document.querySelector('input[name="q"]');
+        searchInput.value = '';
+        searchInput.focus();
+    }
+
+    function quickSearch(term) {
+        const searchInput = document.querySelector('input[name="q"]');
+        searchInput.value = term;
+        searchInput.form.submit();
+    }
+
+    // Auto-submit on Enter key
+    document.querySelector('input[name="q"]').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            this.form.submit();
+        }
+    });
+
+    // Auto-submit when prerelease checkbox changes
+    document.getElementById('includePrerelease')?.addEventListener('change', function() {
+        // Add a small delay to prevent rapid submissions
+        setTimeout(() => {
+            this.form.submit();
+        }, 100);
+    });
+
+    // Auto-submit when sort option changes
+    document.getElementById('sortBy')?.addEventListener('change', function() {
+        this.form.submit();
+    });
+
+    // Focus search input on page load if empty
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.querySelector('input[name="q"]');
+        if (searchInput && !searchInput.value.trim()) {
+            searchInput.focus();
+        }
+    });
+</script>

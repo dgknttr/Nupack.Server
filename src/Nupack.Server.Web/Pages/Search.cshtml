@@ -1,0 +1,157 @@
+@page
+@model Nupack.Server.Web.Pages.SearchModel
+@{
+    ViewData["Title"] = "Search Packages";
+    ViewData["SearchQuery"] = Model.Query;
+}
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Search Header -->
+    <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-4">Search Packages</h1>
+        <p class="text-gray-600 max-w-2xl mx-auto">
+            Find the perfect package for your project. Search by name, description, tags, or author.
+        </p>
+    </div>
+
+    <!-- Search Form -->
+    <div class="card mb-8">
+        <form asp-page="/Search" method="get" class="space-y-4">
+            <!-- Main Search Input -->
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                </div>
+                <input type="text"
+                       name="q"
+                       value="@Model.Query"
+                       placeholder="Search packages..."
+                       class="w-full pl-10 pr-12 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nuget-blue-light focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
+                       autocomplete="off" />
+            </div>
+
+            <!-- Filters Section -->
+            <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <!-- Prerelease Toggle -->
+                <div class="flex items-center">
+                    <input type="checkbox"
+                           id="includePrerelease"
+                           name="includePrerelease"
+                           value="true"
+                           @(Model.IncludePrerelease ? "checked" : "")
+                           class="rounded border-gray-300 text-nuget-blue focus:ring-nuget-blue-light" />
+                    <label for="includePrerelease" class="ml-2 text-sm text-gray-700">
+                        Include prerelease
+                    </label>
+                </div>
+
+                <!-- Search Button -->
+                <button type="submit" class="px-4 py-2 btn-primary flex items-center space-x-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    <span>Search</span>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Search Results -->
+    @if (!string.IsNullOrEmpty(Model.Query))
+    {
+        <div class="mb-6">
+            <div class="flex items-center justify-between">
+                <h2 class="text-xl font-semibold text-gray-900">
+                    Search Results
+                </h2>
+                @if (Model.TotalHits > 0)
+                {
+                    <p class="text-gray-600">
+                        @Model.TotalHits result@(Model.TotalHits != 1 ? "s" : "") found
+                    </p>
+                }
+            </div>
+        </div>
+
+        @if (Model.ErrorMessage != null)
+        {
+            <partial name="_ErrorDisplay" model="@(new {
+                ErrorType = "error",
+                Title = "Search Failed",
+                Message = Model.ErrorMessage,
+                ShowRetry = true,
+                RetryUrl = "",
+                ShowHomeLink = true
+            })" />
+        }
+        else if (Model.Packages.Any())
+        {
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                @foreach (var package in Model.Packages)
+                {
+                    <partial name="_PackageCard" model="package" />
+                }
+            </div>
+
+            <!-- Pagination -->
+            @if (Model.TotalPages > 1)
+            {
+                <div class="flex justify-center items-center space-x-2">
+                    @if (Model.CurrentPage > 1)
+                    {
+                        <a asp-page="/Search" 
+                           asp-route-q="@Model.Query" 
+                           asp-route-page="@(Model.CurrentPage - 1)"
+                           asp-route-includePrerelease="@Model.IncludePrerelease"
+                           class="px-3 py-2 rounded-lg border border-gray-300 text-gray-500 hover:bg-gray-100 transition-colors duration-200">
+                            Previous
+                        </a>
+                    }
+                    
+                    <span class="px-4 py-2 text-gray-600">
+                        Page @Model.CurrentPage of @Model.TotalPages
+                    </span>
+                    
+                    @if (Model.CurrentPage < Model.TotalPages)
+                    {
+                        <a asp-page="/Search" 
+                           asp-route-q="@Model.Query" 
+                           asp-route-page="@(Model.CurrentPage + 1)"
+                           asp-route-includePrerelease="@Model.IncludePrerelease"
+                           class="px-3 py-2 rounded-lg border border-gray-300 text-gray-500 hover:bg-gray-100 transition-colors duration-200">
+                            Next
+                        </a>
+                    }
+                </div>
+            }
+        }
+        else
+        {
+            <partial name="_ErrorDisplay" model="@(new {
+                ErrorType = "empty",
+                Title = "No packages found",
+                Message = $"No packages found matching '{Model.Query}'. Try adjusting your search terms or including prerelease packages.",
+                ShowRetry = false,
+                RetryUrl = "",
+                ShowHomeLink = true
+            })" />
+        }
+    }
+    else
+    {
+        <!-- Empty State -->
+        <div class="text-center py-12">
+            <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+            <h3 class="text-xl font-medium text-gray-900 mb-2">
+                Start searching
+            </h3>
+            <p class="text-gray-600">
+                Enter a package name, description, or tag to find packages.
+            </p>
+        </div>
+    }
+</div>

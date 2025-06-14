@@ -1,0 +1,207 @@
+@page
+@model Nupack.Server.Web.Pages.IndexModel
+@{
+    ViewData["Title"] = "Browse Packages";
+}
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Hero Section -->
+    <div class="text-center mb-12">
+        <div class="flex justify-center mb-6">
+            <div class="w-16 h-16 bg-gradient-to-br from-nuget-blue to-nuget-blue-light rounded-2xl flex items-center justify-center shadow-lg">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                </svg>
+            </div>
+        </div>
+        <h1 class="text-4xl font-bold text-gray-900 mb-4">
+            @Model.BrandingOptions.RepositoryTitle
+        </h1>
+        <p class="text-xl text-gray-600 max-w-2xl mx-auto">
+            @Model.BrandingOptions.RepositoryDescription.
+            @Model.BrandingOptions.WelcomeMessage
+        </p>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="max-w-2xl mx-auto mb-12">
+        <form asp-page="/Search" method="get" class="relative">
+            <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+            <input type="text" name="q" placeholder="Search packages..."
+                   class="w-full pl-10 pr-12 py-3 text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nuget-blue-light focus:border-transparent bg-white text-gray-900 placeholder-gray-500" />
+            <button type="submit" class="absolute right-2 top-1/2 transform -translate-y-1/2 btn-primary px-4 py-2">
+                Search
+            </button>
+        </form>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="card text-center">
+            <div class="text-3xl font-bold text-nuget-blue mb-2">@Model.TotalPackages</div>
+            <div class="text-gray-600">Total Packages</div>
+        </div>
+        <div class="card text-center">
+            <div class="text-3xl font-bold text-green-600 mb-2">@Model.StablePackages</div>
+            <div class="text-gray-600">Stable Releases</div>
+        </div>
+        <div class="card text-center">
+            <div class="text-3xl font-bold text-yellow-600 mb-2">@Model.PrereleasePackages</div>
+            <div class="text-gray-600">Prerelease Versions</div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="bg-gradient-to-r from-nuget-blue to-nuget-blue-light rounded-xl p-6 mb-8 text-white">
+        <div class="flex flex-col md:flex-row items-center justify-between">
+            <div class="mb-4 md:mb-0">
+                <h2 class="text-2xl font-bold mb-2">Get Started</h2>
+                <p class="text-blue-100">
+                    Configure your NuGet client to use this private repository
+                </p>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-3">
+                <a asp-page="/Search" class="bg-white text-nuget-blue px-6 py-3 rounded-lg font-medium hover:bg-gray-100 transition-colors duration-200 text-center">
+                    <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    Search Packages
+                </a>
+                <a asp-page="/Upload" class="bg-nuget-blue-dark text-white px-6 py-3 rounded-lg font-medium hover:bg-opacity-90 transition-colors duration-200 text-center">
+                    <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+                    </svg>
+                    Upload Package
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Package List -->
+    @if (Model.ErrorMessage != null)
+    {
+        <partial name="_ErrorDisplay" model="@(new {
+            ErrorType = "error",
+            Title = "Failed to Load Packages",
+            Message = Model.ErrorMessage,
+            ShowRetry = true,
+            RetryUrl = "",
+            ShowHomeLink = true,
+            Icon ="",
+            Size = "default"
+        })" />
+    }
+    else if (Model.Packages.Any())
+    {
+        <div>
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-2">Browse Packages</h2>
+                    <p class="text-gray-600">
+                        Showing @Model.Packages.Count of @Model.TotalPackages packages
+                    </p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                @foreach (var package in Model.Packages)
+                {
+                    <partial name="_PackageCard" model="package" />
+                }
+            </div>
+
+            @if (Model.TotalPackages > Model.Packages.Count)
+            {
+                <div class="text-center mt-8">
+                    <a asp-page="/Search" class="btn-outline">
+                        View All Packages
+                    </a>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <partial name="_ErrorDisplay" model="@(new {
+            ErrorType = "empty",
+            Title = "No Packages Available",
+            Message = "This repository doesn't contain any packages yet. Upload your first package to get started.",
+            ShowRetry = false,
+            RetryUrl = "",
+            ShowHomeLink = false,
+            Icon ="",
+            Size = "default"
+        })" />
+    }
+
+    <!-- Configuration Help -->
+    <div class="mt-12 card">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">
+            @Model.BrandingOptions.ConfigurationGuideTitle
+        </h3>
+        <div class="space-y-4">
+            <div>
+                <h4 class="font-medium text-gray-900 mb-2">@Model.BrandingOptions.DotNetCliGuide</h4>
+                <div class="code-block flex items-center justify-between">
+                    <code id="dotnet-config">dotnet nuget add source "@Model.NugetSourceUrl" --name "@Model.BrandingOptions.NugetSourceName"</code>
+                    <button onclick="copyCommand('dotnet-config')" class="copy-button" title="Copy command">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div>
+                <h4 class="font-medium text-gray-900 mb-2">@Model.BrandingOptions.VisualStudioGuide</h4>
+                <p class="text-gray-600 text-sm">
+                    @Model.BrandingOptions.VisualStudioInstructions
+                    <code class="bg-gray-100 px-2 py-1 rounded ml-1">
+                        @Model.NugetSourceUrl
+                    </code>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function copyCommand(elementId) {
+        const element = document.getElementById(elementId);
+        const text = element.textContent || element.innerText;
+        
+        navigator.clipboard.writeText(text).then(() => {
+            showToast('Configuration command copied to clipboard!', 'success');
+        }).catch(() => {
+            showToast('Failed to copy command', 'error');
+        });
+    }
+
+    function showToast(message, type) {
+        const existingToasts = document.querySelectorAll('.toast-notification');
+        existingToasts.forEach(toast => toast.remove());
+
+        const toast = document.createElement('div');
+        toast.className = `toast-notification fixed top-4 right-4 z-50 px-4 py-2 rounded-lg text-white font-medium transition-all duration-300 transform translate-x-full ${
+            type === 'success' ? 'bg-green-500' : 'bg-red-500'
+        }`;
+        toast.textContent = message;
+        
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.transform = 'translateX(0)';
+        }, 10);
+        
+        setTimeout(() => {
+            toast.style.transform = 'translateX(full)';
+            toast.style.opacity = '0';
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 300);
+        }, 3000);
+    }
+</script>

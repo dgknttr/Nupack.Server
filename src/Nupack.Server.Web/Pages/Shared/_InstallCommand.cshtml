@@ -1,0 +1,151 @@
+@model dynamic
+
+@{
+    string packageId = "";
+    string version = "";
+    string source = "Nupack Server";
+    bool isCompact = false;
+    bool isPMC = false;
+    string title = "";
+    bool showMultipleCommands = false;
+    bool showVersionSpecific = true;
+
+    try {
+        packageId = Model?.PackageId?.ToString() ?? "";
+        version = Model?.Version?.ToString() ?? "";
+        source = Model?.Source?.ToString() ?? "Nupack Server";
+        isCompact = Model?.IsCompact == true;
+        isPMC = Model?.IsPMC == true;
+        title = Model?.Title?.ToString() ?? "";
+        showMultipleCommands = Model?.ShowMultipleCommands == true;
+        showVersionSpecific = Model?.ShowVersionSpecific != false;
+    } catch {
+        // Use defaults if model binding fails
+    }
+}
+
+<div class="install-commands space-y-3">
+    @if (showMultipleCommands)
+    {
+        <!-- Multiple command options -->
+        <div class="space-y-4">
+            <!-- dotnet CLI -->
+            <div>
+                <h4 class="text-sm font-semibold text-gray-700 mb-2">@(title ?? "dotnet CLI")</h4>
+                <div class="bg-gray-100 border border-gray-200 rounded-lg p-3 flex items-center justify-between">
+                    <pre class="text-sm font-mono text-gray-800 break-all flex-1" id="dotnet-command">dotnet add package @packageId@(showVersionSpecific ? $" --version {version}" : "") --source "@source"</pre>
+                    <button onclick="copyCommand('dotnet-command')"
+                            class="ml-3 p-2 text-gray-500 hover:text-nuget-blue transition-colors duration-200 flex-shrink-0"
+                            title="Copy dotnet CLI command"
+                            aria-label="Copy dotnet CLI command to clipboard">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Package Manager Console -->
+            <div>
+                <h4 class="text-sm font-semibold text-gray-700 mb-2">Package Manager Console</h4>
+                <div class="bg-gray-100 border border-gray-200 rounded-lg p-3 flex items-center justify-between">
+                    <pre class="text-sm font-mono text-gray-800 break-all flex-1" id="pm-command">Install-Package @packageId@(showVersionSpecific ? $" -Version {version}" : "") -Source "@source"</pre>
+                    <button onclick="copyCommand('pm-command')"
+                            class="ml-3 p-2 text-gray-500 hover:text-nuget-blue transition-colors duration-200 flex-shrink-0"
+                            title="Copy Package Manager command"
+                            aria-label="Copy Package Manager Console command to clipboard">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- PackageReference -->
+            <div>
+                <h4 class="text-sm font-semibold text-gray-700 mb-2">PackageReference</h4>
+                <div class="bg-gray-100 border border-gray-200 rounded-lg p-3 flex items-center justify-between">
+                    <pre class="text-sm font-mono text-gray-800 break-all flex-1" id="ref-command">&lt;PackageReference Include="@packageId"@(showVersionSpecific ? $" Version=\"{version}\"" : "") /&gt;</pre>
+                    <button onclick="copyCommand('ref-command')"
+                            class="ml-3 p-2 text-gray-500 hover:text-nuget-blue transition-colors duration-200 flex-shrink-0"
+                            title="Copy PackageReference XML"
+                            aria-label="Copy PackageReference XML to clipboard">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Single command (compact) -->
+        <div class="@(isCompact ? "bg-gray-50 border border-gray-200 rounded p-2" : "bg-gray-50 border border-gray-200 rounded-lg p-3")">
+            <div class="flex items-center justify-between">
+                <div class="flex-1 min-w-0">
+                    @if (!string.IsNullOrEmpty(title))
+                    {
+                        <div class="@(isCompact ? "text-xs" : "text-xs") font-medium text-gray-700 mb-1">@title</div>
+                    }
+                    else if (!isCompact)
+                    {
+                        <div class="text-xs font-medium text-gray-700 mb-1">Install Command</div>
+                    }
+                    <pre class="@(isCompact ? "text-xs" : "text-sm") font-mono text-gray-800 break-all" id="install-command-@packageId">@(isPMC ? $"Install-Package {packageId}" : $"dotnet add package {packageId}")@(showVersionSpecific ? (isPMC ? $" -Version {version}" : $" --version {version}") : "")@(isPMC ? $" -Source \"{source}\"" : $" --source \"{source}\"")</pre>
+                </div>
+                <button onclick="copyCommand('install-command-@packageId')"
+                        class="@(isCompact ? "ml-2 p-1" : "ml-3 p-2") text-gray-500 hover:text-nuget-blue transition-colors duration-200 flex-shrink-0"
+                        title="Copy install command"
+                        aria-label="Copy install command to clipboard">
+                    <svg class="@(isCompact ? "w-3 h-3" : "w-4 h-4")" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    }
+</div>
+
+<script>
+    function copyCommand(elementId) {
+        const element = document.getElementById(elementId);
+        const text = element.textContent || element.innerText;
+        
+        navigator.clipboard.writeText(text).then(() => {
+            showToast('Command copied to clipboard!', 'success');
+        }).catch(() => {
+            showToast('Failed to copy command', 'error');
+        });
+    }
+
+    function showToast(message, type) {
+        // Remove existing toasts
+        const existingToasts = document.querySelectorAll('.toast-notification');
+        existingToasts.forEach(toast => toast.remove());
+
+        const toast = document.createElement('div');
+        toast.className = `toast-notification fixed top-4 right-4 z-50 px-4 py-2 rounded-lg text-white font-medium transition-all duration-300 transform translate-x-full ${
+            type === 'success' ? 'bg-green-500' : 'bg-red-500'
+        }`;
+        toast.textContent = message;
+        
+        document.body.appendChild(toast);
+        
+        // Animate in
+        setTimeout(() => {
+            toast.style.transform = 'translateX(0)';
+        }, 10);
+        
+        // Animate out and remove
+        setTimeout(() => {
+            toast.style.transform = 'translateX(full)';
+            toast.style.opacity = '0';
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 300);
+        }, 3000);
+    }
+</script>
