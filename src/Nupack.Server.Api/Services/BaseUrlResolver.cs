@@ -38,7 +38,8 @@ public class BaseUrlResolver : IBaseUrlResolver
                 var request = context.Request;
                 var baseUrl = $"{request.Scheme}://{request.Host}";
 
-                _logger.LogDebug("Resolved base URL from HttpContext: {BaseUrl}", baseUrl);
+                // Sanitize the base URL for logging to prevent log forging attacks
+                _logger.LogDebug("Resolved base URL from HttpContext: {BaseUrl}", SanitizeForLogging(baseUrl));
                 return baseUrl;
             }
             catch (Exception ex)
@@ -65,7 +66,8 @@ public class BaseUrlResolver : IBaseUrlResolver
 
             if (!string.IsNullOrWhiteSpace(configuredBaseUrl))
             {
-                _logger.LogDebug("Resolved base URL from configuration in Development environment: {BaseUrl}", configuredBaseUrl);
+                // Sanitize the configured base URL for logging to prevent log forging attacks
+                _logger.LogDebug("Resolved base URL from configuration in Development environment: {BaseUrl}", SanitizeForLogging(configuredBaseUrl));
                 return configuredBaseUrl;
             }
         }
@@ -77,5 +79,21 @@ public class BaseUrlResolver : IBaseUrlResolver
 
         _logger.LogError(finalErrorMessage);
         throw new InvalidOperationException(finalErrorMessage);
+    }
+
+    /// <summary>
+    /// Sanitizes a string for safe logging by removing characters that could be used for log forging attacks.
+    /// </summary>
+    /// <param name="input">The input string to sanitize</param>
+    /// <returns>A sanitized string safe for logging</returns>
+    private static string SanitizeForLogging(string input)
+    {
+        if (string.IsNullOrEmpty(input))
+            return input;
+
+        return input.Replace(Environment.NewLine, "")
+                   .Replace("\r", "")
+                   .Replace("\n", "")
+                   .Replace("\t", "");
     }
 }
