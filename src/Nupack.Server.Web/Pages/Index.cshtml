@@ -1,4 +1,4 @@
-@page
+﻿@page
 @model Nupack.Server.Web.Pages.IndexModel
 @{
     ViewData["Title"] = "Browse Packages";
@@ -44,12 +44,12 @@
             <div class="text-gray-600">Total Packages</div>
         </div>
         <div class="card text-center">
-            <div class="text-3xl font-bold text-green-600 mb-2">@Model.StablePackages</div>
-            <div class="text-gray-600">Stable Releases</div>
+            <div class="text-3xl font-bold text-green-600 mb-2">@Model.StablePackagesInView</div>
+            <div class="text-gray-600">Stable In View</div>
         </div>
         <div class="card text-center">
-            <div class="text-3xl font-bold text-yellow-600 mb-2">@Model.PrereleasePackages</div>
-            <div class="text-gray-600">Prerelease Versions</div>
+            <div class="text-3xl font-bold text-yellow-600 mb-2">@Model.PrereleasePackagesInView</div>
+            <div class="text-gray-600">Prerelease In View</div>
         </div>
     </div>
 
@@ -59,7 +59,7 @@
             <div class="mb-4 md:mb-0">
                 <h2 class="text-2xl font-bold mb-2">Get Started</h2>
                 <p class="text-blue-100">
-                    Configure your NuGet client to use this private repository
+                    Configure your NuGet client to use this self-hosted feed
                 </p>
             </div>
             <div class="flex flex-col sm:flex-row gap-3">
@@ -100,7 +100,7 @@
                 <div>
                     <h2 class="text-2xl font-bold text-gray-900 mb-2">Browse Packages</h2>
                     <p class="text-gray-600">
-                        Showing @Model.Packages.Count of @Model.TotalPackages packages
+                        Showing @Model.Packages.Count of @Model.TotalPackages packages. "In view" cards reflect the packages listed on this page.
                     </p>
                 </div>
             </div>
@@ -205,3 +205,5 @@
         }, 3000);
     }
 </script>
+
+

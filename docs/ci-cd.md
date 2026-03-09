@@ -6,10 +6,12 @@ This guide explains how to integrate Nupack Server with various CI/CD platforms 
 
 The CI/CD integration allows you to:
 - Automatically build and pack NuGet packages
-- Push packages to your private NuGet server
+- Push packages to your self-hosted NuGet feed
 - Manage package versions and releases
 - Integrate with your existing development workflow
 
+> Note
+> Nupack Server supports an optional shared write API key in the current 0.x line. When `PackageSecurity:WriteApiKey` is configured, `dotnet nuget push --api-key` maps to the `X-NuGet-ApiKey` header used by the built-in write protection.
 ## GitHub Actions
 
 ### Basic Workflow
@@ -453,7 +455,7 @@ For all CI/CD platforms, configure these secrets:
 | Secret Name | Description | Example Value |
 |-------------|-------------|---------------|
 | `NUGET_SERVER_URL` | Your NuGet server API endpoint | `https://nuget.yourcompany.com/v3/index.json` |
-| `NUGET_API_KEY` | API key for authentication | `your-api-key-here` |
+| `NUGET_API_KEY` | Optional shared write key for `push` and `delete` | `your-write-key-here` |
 
 ### GitHub Actions Secrets
 
@@ -510,13 +512,13 @@ For all CI/CD platforms, configure these secrets:
 1. **Authentication Failures**
    ```bash
    # Verify API key
-   curl -H "X-NuGet-ApiKey: your-api-key" https://your-server/api/v1/packages
+   curl -I https://your-server/v3/index.json
    ```
 
 2. **Network Connectivity**
    ```bash
    # Test server connectivity
-   curl -I https://your-server/api/v1/packages
+   curl -I https://your-server/health
    ```
 
 3. **Package Validation Errors**
@@ -579,3 +581,10 @@ For solutions with multiple projects:
 ```
 
 This guide provides comprehensive CI/CD integration options for automating your NuGet package publishing workflow with Nupack Server.
+
+
+
+
+
+
+

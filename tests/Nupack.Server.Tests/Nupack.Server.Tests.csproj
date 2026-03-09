@@ -28,6 +28,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Nupack.Server.Api\Nupack.Server.Api.csproj" />
+    <ProjectReference Include="..\..\src\Nupack.Server.Web\Nupack.Server.Web.csproj" Aliases="NupackWeb" />
+    <ProjectReference Include="..\..\src\Nupack.Server.Storage\Nupack.Server.Storage.csproj" />
+    <ProjectReference Include="..\..\src\Nupack.Server.Storage.FileSystem\Nupack.Server.Storage.FileSystem.csproj" />
+    <ProjectReference Include="..\..\src\Nupack.Server.Storage.S3\Nupack.Server.Storage.S3.csproj" />
   </ItemGroup>
 
 </Project>

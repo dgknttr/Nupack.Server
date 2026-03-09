@@ -19,30 +19,131 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
-    
-    - name: Restore dependencies
-      run: dotnet restore
-    
-    - name: Build
-      run: dotnet build --no-restore --configuration Release
-    
-    - name: Test
-      run: dotnet test --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./TestResults
 
-    - name: Upload coverage reports
-      uses: codecov/codecov-action@v5
-      with:
-        directory: ./TestResults
-        fail_ci_if_error: false
-        verbose: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./TestResults
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v5
+        with:
+          directory: ./TestResults
+          fail_ci_if_error: false
+          verbose: true
+
+  s3-provider:
+    name: S3 Provider
+    runs-on: ubuntu-latest
+    needs: test
+    env:
+      NUPACK_S3_TESTS__SERVICE_URL: http://127.0.0.1:9000
+      NUPACK_S3_TESTS__REGION: us-east-1
+      NUPACK_S3_TESTS__ACCESS_KEY: minioadmin
+      NUPACK_S3_TESTS__SECRET_KEY: minioadmin
+      NUPACK_S3_TESTS__FORCE_PATH_STYLE: 'true'
+      NUPACK_S3_TESTS__PREFIX: packages/
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio \
+            -p 9000:9000 \
+            -e MINIO_ROOT_USER=${{ env.NUPACK_S3_TESTS__ACCESS_KEY }} \
+            -e MINIO_ROOT_PASSWORD=${{ env.NUPACK_S3_TESTS__SECRET_KEY }} \
+            minio/minio server /data
+
+      - name: Wait for MinIO health
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:9000/minio/health/live > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "MinIO did not become healthy in time."
+          exit 1
+
+      - name: Run S3-backed tests
+        run: dotnet test tests/Nupack.Server.Tests/Nupack.Server.Tests.csproj --configuration Release --filter "FullyQualifiedName~S3"
+
+      - name: Dump MinIO log on failure
+        if: failure()
+        run: docker logs minio
+
+      - name: Stop MinIO
+        if: always()
+        run: docker rm -f minio
+
+  cli-smoke:
+    name: CLI Smoke
+    runs-on: ubuntu-latest
+    needs: [test, s3-provider]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore and build API host
+        run: |
+          dotnet restore
+          dotnet build src/Nupack.Server.Api/Nupack.Server.Api.csproj --no-restore --configuration Release
+
+      - name: Start API host
+        run: |
+          nohup dotnet run --project src/Nupack.Server.Api/Nupack.Server.Api.csproj --no-build --configuration Release --urls "http://127.0.0.1:5003" > api.log 2>&1 &
+
+      - name: Wait for API health
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:5003/health > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API host did not become healthy in time."
+          exit 1
+
+      - name: Add source and push sample package
+        run: |
+          cp NuGet.Config smoke.nuget.config
+          dotnet nuget add source "http://127.0.0.1:5003/v3/index.json" --name "nupack-smoke" --configfile smoke.nuget.config
+          dotnet nuget push test/TestPackage.1.0.0.nupkg --source "nupack-smoke" --configfile smoke.nuget.config --skip-duplicate
+
+      - name: Verify search endpoint
+        run: |
+          curl -fsS "http://127.0.0.1:5003/v3/search?q=TestPackage&take=5"
+
+      - name: Restore sample project from local feed
+        run: |
+          dotnet restore test-project/test-project.csproj --configfile test-project/nuget.config
+
+      - name: Dump API log on failure
+        if: failure()
+        run: cat api.log
 
   security-scan:
     name: Security Scan
@@ -52,63 +153,63 @@ jobs:
       security-events: write
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@0.28.0
-      with:
-        scan-type: 'fs'
-        scan-ref: '.'
-        format: 'sarif'
-        output: 'trivy-results.sarif'
-        severity: 'CRITICAL,HIGH,MEDIUM'
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
 
-    - name: Upload Trivy scan results
-      uses: github/codeql-action/upload-sarif@v3
-      if: always()
-      with:
-        sarif_file: 'trivy-results.sarif'
-        category: 'trivy'
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: 'trivy'
 
   build-and-push:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
-    needs: [test, security-scan]
+    needs: [test, s3-provider, cli-smoke, security-scan]
     if: github.ref == 'refs/heads/main'
     permissions:
       contents: read
       packages: write
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-    
-    - name: Login to GitHub Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    
-    - name: Extract metadata
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ghcr.io/${{ github.repository }}
-        tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=sha,prefix={{branch}}-
-          type=raw,value=latest,enable={{is_default_branch}}
-    
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v6
-      with:
-        context: .
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

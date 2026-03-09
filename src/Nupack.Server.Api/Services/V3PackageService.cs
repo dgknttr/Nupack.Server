@@ -1,6 +1,9 @@
 using Nupack.Server.Api.Models;
 using Nupack.Server.Api.Models.V3;
+using Nupack.Server.Storage.Models;
+using Nupack.Server.Storage.Services;
 using System.Text.RegularExpressions;
+using NuGet.Packaging;
 using NuGet.Versioning;
 
 namespace Nupack.Server.Api.Services;
@@ -74,24 +77,19 @@ public class V3PackageService : IV3PackageService
     {
         try
         {
-            // Get all packages from storage
             var allPackages = await _storageService.GetPackagesAsync(query, 0, int.MaxValue);
 
-            // Filter prerelease if needed
             if (!includePrerelease)
             {
                 allPackages = allPackages.Where(p => !IsPrerelease(p.Version));
             }
 
-            // baseUrl should be provided by HTTP endpoints via IBaseUrlResolver
-            // This fallback is only for backward compatibility - prefer explicit baseUrl
             if (string.IsNullOrWhiteSpace(baseUrl))
             {
                 _logger.LogWarning("SearchPackagesAsync called without baseUrl. This is deprecated - use IBaseUrlResolver in HTTP endpoints.");
-                baseUrl = "http://localhost:5003"; // Minimal fallback
+                baseUrl = "http://localhost:5003";
             }
 
-            // Group by package ID and convert to search results
             var groupedPackages = allPackages
                 .GroupBy(p => p.Id, StringComparer.OrdinalIgnoreCase)
                 .Select(g => ConvertToSearchResult(g.Key, g.ToList(), baseUrl))
@@ -154,9 +152,18 @@ public class V3PackageService : IV3PackageService
     {
         try
         {
-            // For now, return the same as package content
-            // In a full implementation, you'd extract and return just the .nuspec
-            return await _storageService.GetPackageStreamAsync(packageId, version);
+            await using var packageStream = await _storageService.GetPackageStreamAsync(packageId, version);
+            if (packageStream == null)
+                return null;
+
+            using var packageReader = new PackageArchiveReader(packageStream, leaveStreamOpen: false);
+            await using var nuspecStream = await packageReader.GetNuspecAsync(CancellationToken.None);
+
+            var manifestStream = new MemoryStream();
+            await nuspecStream.CopyToAsync(manifestStream);
+            manifestStream.Position = 0;
+
+            return manifestStream;
         }
         catch (Exception ex)
         {
@@ -184,7 +191,6 @@ public class V3PackageService : IV3PackageService
                 return null;
             var registrationId = $"{baseUrl}/v3/registrations/{packageId.ToLowerInvariant()}/index.json";
 
-            // Create a single page for all versions (simplified approach)
             var page = new RegistrationPage
             {
                 Id = $"{baseUrl}/v3/registrations/{packageId.ToLowerInvariant()}/page.json",
@@ -328,7 +334,7 @@ public class V3PackageService : IV3PackageService
             ProjectUrl = latest.ProjectUrl,
             Tags = ParseTags(latest.Tags),
             Authors = ParseAuthors(latest.Authors),
-            TotalDownloads = 0, // TODO: Implement download tracking
+            TotalDownloads = 0,
             Verified = false,
             PackageTypes = new List<PackageType> { new() { Name = "Dependency" } },
             Versions = versions.Select(v => new SearchVersion
@@ -402,7 +408,6 @@ public class V3PackageService : IV3PackageService
         if (string.IsNullOrWhiteSpace(dependencies))
             return new List<DependencyGroup>();
 
-        // Simple parsing - in production you'd want more robust parsing
         var deps = dependencies.Split(',', StringSplitOptions.RemoveEmptyEntries)
                               .Select(d => d.Trim())
                               .Where(d => !string.IsNullOrEmpty(d))

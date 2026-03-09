@@ -1,18 +1,25 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.ComponentModel.DataAnnotations;
+using System.Net;
+using System.Net.Http.Json;
 
 namespace Nupack.Server.Web.Pages;
 
 public class UploadModel : PageModel
 {
+    private const string ApiKeyHeaderName = "X-NuGet-ApiKey";
+    private const string UnauthorizedUploadMessage = "A valid X-NuGet-ApiKey header is required for package write operations.";
+
     private readonly ILogger<UploadModel> _logger;
     private readonly IConfiguration _configuration;
+    private readonly IHttpClientFactory _httpClientFactory;
 
-    public UploadModel(ILogger<UploadModel> logger, IConfiguration configuration)
+    public UploadModel(ILogger<UploadModel> logger, IConfiguration configuration, IHttpClientFactory httpClientFactory)
     {
         _logger = logger;
         _configuration = configuration;
+        _httpClientFactory = httpClientFactory;
     }
 
     [BindProperty]
@@ -51,7 +58,7 @@ public class UploadModel : PageModel
             return Page();
         }
 
-        if (PackageFile.Length > 100 * 1024 * 1024) // 100MB limit
+        if (PackageFile.Length > 100 * 1024 * 1024)
         {
             Message = "Package file size cannot exceed 100MB.";
             IsSuccess = false;
@@ -61,19 +68,17 @@ public class UploadModel : PageModel
         try
         {
             var baseUrl = _configuration.GetValue<string>("NuGetServer:BaseUrl") ?? "http://localhost:5003";
-            
-            using var httpClient = new HttpClient();
+
+            using var httpClient = _httpClientFactory.CreateClient("NupackUploadClient");
             using var content = new MultipartFormDataContent();
-            
-            // Add the package file
+
             var fileContent = new StreamContent(PackageFile.OpenReadStream());
             fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
             content.Add(fileContent, "package", PackageFile.FileName);
 
-            // Add API key if provided
             if (!string.IsNullOrWhiteSpace(ApiKey))
             {
-                httpClient.DefaultRequestHeaders.Add("X-NuGet-ApiKey", ApiKey);
+                httpClient.DefaultRequestHeaders.Add(ApiKeyHeaderName, ApiKey);
             }
 
             var response = await httpClient.PutAsync($"{baseUrl}/v3/push", content);
@@ -83,18 +88,16 @@ public class UploadModel : PageModel
                 Message = $"Package '{PackageFile.FileName}' uploaded successfully!";
                 IsSuccess = true;
                 _logger.LogInformation("Package uploaded successfully: {FileName}", PackageFile.FileName);
-                
-                // Clear form
+
                 ApiKey = null;
                 PackageFile = null;
                 ModelState.Clear();
             }
             else
             {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                Message = $"Upload failed: {response.StatusCode} - {errorContent}";
+                Message = await GetErrorMessageAsync(response);
                 IsSuccess = false;
-                _logger.LogWarning("Package upload failed: {StatusCode} - {Error}", response.StatusCode, errorContent);
+                _logger.LogWarning("Package upload failed: {StatusCode} - {Error}", response.StatusCode, Message);
             }
         }
         catch (Exception ex)
@@ -106,4 +109,32 @@ public class UploadModel : PageModel
 
         return Page();
     }
+
+    private static async Task<string> GetErrorMessageAsync(HttpResponseMessage response)
+    {
+        ProblemDetails? problemDetails = null;
+
+        try
+        {
+            problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        }
+        catch
+        {
+            // Ignore malformed error payloads and fall back to raw content.
+        }
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            return problemDetails?.Detail ?? UnauthorizedUploadMessage;
+        }
+
+        if (!string.IsNullOrWhiteSpace(problemDetails?.Detail))
+        {
+            return $"Upload failed: {problemDetails.Detail}";
+        }
+
+        var errorContent = await response.Content.ReadAsStringAsync();
+        return $"Upload failed: {response.StatusCode} - {errorContent}";
+    }
 }
+

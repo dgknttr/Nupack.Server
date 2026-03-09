@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc.RazorPages;
+﻿using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Options;
 using Nupack.Server.Web.Models;
 using Nupack.Server.Web.Services;
@@ -25,19 +25,18 @@ public class IndexModel : PageModel
 
     public List<PackageSearchResult> Packages { get; set; } = new();
     public int TotalPackages { get; set; }
-    public int StablePackages { get; set; }
-    public int PrereleasePackages { get; set; }
+    public int StablePackagesInView { get; set; }
+    public int PrereleasePackagesInView { get; set; }
     public string? ErrorMessage { get; set; }
 
     public async Task OnGetAsync()
     {
         try
         {
-            // Load recent packages for the home page
             var searchResponse = await _nugetApiService.SearchPackagesAsync(
-                query: null, 
-                skip: 0, 
-                take: 12, 
+                query: null,
+                skip: 0,
+                take: 12,
                 includePrerelease: true
             );
 
@@ -45,10 +44,8 @@ public class IndexModel : PageModel
             {
                 Packages = searchResponse.Data;
                 TotalPackages = searchResponse.TotalHits;
-                
-                // Calculate stats
-                StablePackages = Packages.Count(p => !p.IsPrerelease);
-                PrereleasePackages = Packages.Count(p => p.IsPrerelease);
+                StablePackagesInView = Packages.Count(p => !p.IsPrerelease);
+                PrereleasePackagesInView = Packages.Count(p => p.IsPrerelease);
             }
             else
             {
@@ -65,14 +62,12 @@ public class IndexModel : PageModel
 
     private string GetNugetSourceUrl()
     {
-        // First try to get from Branding configuration
         var brandingUrl = _configuration.GetValue<string>("Branding:NugetSourceUrl");
         if (!string.IsNullOrWhiteSpace(brandingUrl))
         {
             return brandingUrl;
         }
 
-        // Fallback to NuGetServer BaseUrl + /v3/index.json
         var baseUrl = _configuration.GetValue<string>("NuGetServer:BaseUrl") ?? "http://localhost:5003";
         return $"{baseUrl.TrimEnd('/')}/v3/index.json";
     }

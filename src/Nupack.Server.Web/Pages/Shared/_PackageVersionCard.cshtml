@@ -1,4 +1,4 @@
-@model dynamic
+﻿@model dynamic
 
 @{
     var version = Model.Version as Nupack.Server.Web.Models.RegistrationLeaf;
@@ -75,14 +75,7 @@
         </div>
         
         <div class="flex items-center space-x-2 ml-3">
-            @if (!isSelected)
-            {
-                <a asp-page="/Packages/Details" asp-route-id="@packageId" asp-route-version="@catalogEntry.Version"
-                   class="@(isCompact ? "text-xs" : "text-sm") text-gray-400 hover:text-nuget-blue transition-colors duration-200 font-medium"
-                   title="Select this version">
-                    Select
-                </a>
-            }
+            
             
             @if (!isCompact)
             {
@@ -139,3 +132,5 @@
         }, 3000);
     }
 </script>
+
+

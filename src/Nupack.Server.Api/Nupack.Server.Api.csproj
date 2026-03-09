@@ -20,4 +20,10 @@
     <PackageReference Include="NuGet.Versioning" Version="6.14.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Nupack.Server.Storage\Nupack.Server.Storage.csproj" />
+    <ProjectReference Include="..\Nupack.Server.Storage.FileSystem\Nupack.Server.Storage.FileSystem.csproj" />
+    <ProjectReference Include="..\Nupack.Server.Storage.S3\Nupack.Server.Storage.S3.csproj" />
+  </ItemGroup>
+
 </Project>

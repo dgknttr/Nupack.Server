@@ -1,15 +1,25 @@
 using Nupack.Server.Api.Models;
+using Nupack.Server.Storage.Models;
+using Nupack.Server.Storage.Services;
 
 namespace Nupack.Server.Api.Services;
 
 public class PackageService : IPackageService
 {
     private readonly IPackageStorageService _storageService;
+    private readonly IPackageUploadValidator _uploadValidator;
+    private readonly IPackageLifecycleHook _lifecycleHook;
     private readonly ILogger<PackageService> _logger;
 
-    public PackageService(IPackageStorageService storageService, ILogger<PackageService> logger)
+    public PackageService(
+        IPackageStorageService storageService,
+        IPackageUploadValidator uploadValidator,
+        IPackageLifecycleHook lifecycleHook,
+        ILogger<PackageService> logger)
     {
         _storageService = storageService;
+        _uploadValidator = uploadValidator;
+        _lifecycleHook = lifecycleHook;
         _logger = logger;
     }
 
@@ -17,14 +27,17 @@ public class PackageService : IPackageService
     {
         try
         {
-            if (request.Package == null || request.Package.Length == 0)
+            var validation = await _uploadValidator.ValidateAsync(request);
+            if (!validation.IsValid)
             {
-                return new ApiResponse<PackageMetadata>(false, Message: "Package file is required");
+                return new ApiResponse<PackageMetadata>(false, Message: validation.Message);
             }
 
-            var metadata = await _storageService.StorePackageAsync(request.Package);
+            var packageContent = new PackageUploadContent(request.Package.FileName, request.Package.Length, request.Package.OpenReadStream);
+            var metadata = await _storageService.StorePackageAsync(packageContent);
+            await _lifecycleHook.OnPackageUploadedAsync(metadata);
             _logger.LogInformation("Successfully uploaded package {PackageId} {Version}", metadata.Id, metadata.Version);
-            
+
             return new ApiResponse<PackageMetadata>(true, metadata, "Package uploaded successfully");
         }
         catch (InvalidOperationException ex)
@@ -45,7 +58,7 @@ public class PackageService : IPackageService
         {
             var packages = await _storageService.GetPackagesAsync(request.Query, request.Skip, request.Take);
             var totalCount = await _storageService.GetTotalPackageCountAsync(request.Query);
-            
+
             var response = new PackageListResponse(packages, totalCount);
             return new ApiResponse<PackageListResponse>(true, response);
         }
@@ -104,6 +117,7 @@ public class PackageService : IPackageService
                 return new ApiResponse<bool>(false, Message: "Package not found");
             }
 
+            await _lifecycleHook.OnPackageDeletedAsync(id, version);
             _logger.LogInformation("Successfully deleted package {PackageId} {Version}", id, version);
             return new ApiResponse<bool>(true, true, "Package deleted successfully");
         }

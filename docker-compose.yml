@@ -4,12 +4,12 @@ services:
   nupack-server:
     build: .
     ports:
-      - "5003:5003"  # NuGet API server (HTTP)
-      - "5001:5001"  # NuGet API server (HTTPS)
-      - "5002:5002"  # Web UI (HTTPS)
-      - "5004:5004"  # Web UI (HTTP)
+      - "5003:5003"
+      - "5001:5001"
+      - "5002:5002"
+      - "5004:5004"
     volumes:
-      - ./data:/app/data  # Persistent data storage
+      - ./data:/app/data
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - Branding__ProductName=Nupack Server
@@ -17,10 +17,44 @@ services:
       - Branding__RepositoryTitle=Nupack Private Repository
       - Branding__NugetSourceName=Nupack Server
       - Branding__NugetSourceUrl=http://localhost:5003/v3/index.json
+      - PackageStorage__Provider=${PACKAGE_STORAGE_PROVIDER:-FileSystem}
+      - PackageStorage__FileSystem__BasePath=/app/data/packages
+      - PackageStorage__S3__BucketName=${PACKAGE_STORAGE_S3_BUCKET:-nupack-packages}
+      - PackageStorage__S3__Region=${PACKAGE_STORAGE_S3_REGION:-us-east-1}
+      - PackageStorage__S3__ServiceUrl=${PACKAGE_STORAGE_S3_SERVICE_URL:-http://minio:9000}
+      - PackageStorage__S3__AccessKey=${PACKAGE_STORAGE_S3_ACCESS_KEY:-minioadmin}
+      - PackageStorage__S3__SecretKey=${PACKAGE_STORAGE_S3_SECRET_KEY:-minioadmin}
+      - PackageStorage__S3__ForcePathStyle=${PACKAGE_STORAGE_S3_FORCE_PATH_STYLE:-true}
+      - PackageStorage__S3__Prefix=${PACKAGE_STORAGE_S3_PREFIX:-packages/}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5003/health", "&&", "curl", "-f", "http://localhost:5002/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:5003/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
+
+  minio:
+    image: minio/minio
+    profiles: ["s3"]
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=${PACKAGE_STORAGE_S3_ACCESS_KEY:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${PACKAGE_STORAGE_S3_SECRET_KEY:-minioadmin}
+    volumes:
+      - ./data/minio:/data
+
+  minio-init:
+    image: minio/mc
+    profiles: ["s3"]
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 ${PACKAGE_STORAGE_S3_ACCESS_KEY:-minioadmin} ${PACKAGE_STORAGE_S3_SECRET_KEY:-minioadmin}; do sleep 1; done;
+      mc mb -p local/${PACKAGE_STORAGE_S3_BUCKET:-nupack-packages};
+      exit 0;
+      "

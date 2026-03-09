@@ -1,248 +1,142 @@
-# 📚 Usage Examples
+# Usage Examples
 
-## .NET CLI Commands
+This document shows the current supported V3-style usage for Nupack Server.
 
-### Adding the Package Source
+## Add the Feed
+
 ```bash
-# Add Nupack NuGet server as a package source
-dotnet nuget add source http://localhost:5003/v3/index.json --name "Nupack Server"
+dotnet nuget add source "http://localhost:5003/v3/index.json" --name "Nupack Server"
+```
 
-# List all configured sources
+List configured sources:
+
+```bash
 dotnet nuget list source
 ```
 
-### Publishing Packages
+## Push a Package
+
 ```bash
-# Create a sample package first (if you don't have one)
-dotnet new classlib -n SampleLibrary
-cd SampleLibrary
-dotnet pack
-
-# Push the package to Nupack NuGet server
-dotnet nuget push bin/Debug/SampleLibrary.1.0.0.nupkg --source "Nupack Server"
-
-# Push with specific API endpoint
-dotnet nuget push bin/Debug/SampleLibrary.1.0.0.nupkg --source http://localhost:5003/api/v2/package
+dotnet nuget push path/to/YourPackage.1.0.0.nupkg --source "Nupack Server"
 ```
 
-### Installing Packages
+If your deployment enables the optional shared write key:
+
 ```bash
-# Install from Nupack server specifically
-dotnet add package SampleLibrary --source "Nupack Server"
-
-# Install with version specification
-dotnet add package SampleLibrary --version 1.0.0 --source "Nupack Server"
+dotnet nuget push path/to/YourPackage.1.0.0.nupkg --source "Nupack Server" --api-key "your-write-key"
 ```
 
-## cURL Examples
+Or push directly to the URL:
 
-### Upload Package
 ```bash
-# Upload a .nupkg file
-curl -X POST "http://localhost:8080/api/v1/packages" \
-  -H "Content-Type: multipart/form-data" \
-  -F "package=@SampleLibrary.1.0.0.nupkg"
-
-# Expected response:
-# {
-#   "success": true,
-#   "data": {
-#     "id": "SampleLibrary",
-#     "version": "1.0.0",
-#     "title": "SampleLibrary",
-#     "description": "Package Description",
-#     "authors": "Author Name",
-#     "tags": null,
-#     "created": "2024-06-04T15:09:00Z",
-#     "size": 4096,
-#     "fileName": "SampleLibrary.1.0.0.nupkg"
-#   },
-#   "message": "Package uploaded successfully"
-# }
+dotnet nuget push path/to/YourPackage.1.0.0.nupkg --source "http://localhost:5003/v3/index.json"
 ```
 
-### Search Packages
+## Restore a Package From the Feed
+
 ```bash
-# Get all packages
-curl "http://localhost:8080/api/v1/packages"
-
-# Search with query
-curl "http://localhost:8080/api/v1/packages?q=Sample"
-
-# Pagination
-curl "http://localhost:8080/api/v1/packages?skip=0&take=10"
-
-# Combined search with pagination
-curl "http://localhost:8080/api/v1/packages?q=Library&skip=0&take=5"
+dotnet add package YourPackage --source "Nupack Server"
 ```
 
-### Get Package Metadata
+If you already committed a `nuget.config` file with the feed, a normal restore is enough:
+
 ```bash
-# Get specific package metadata
-curl "http://localhost:8080/api/v1/packages/SampleLibrary/1.0.0"
-
-# Expected response:
-# {
-#   "success": true,
-#   "data": {
-#     "id": "SampleLibrary",
-#     "version": "1.0.0",
-#     "title": "SampleLibrary",
-#     "description": "Package Description",
-#     "authors": "Author Name",
-#     "tags": null,
-#     "created": "2024-06-04T15:09:00Z",
-#     "size": 4096,
-#     "fileName": "SampleLibrary.1.0.0.nupkg"
-#   }
-# }
+dotnet restore
 ```
 
-### Download Package
-```bash
-# Download package file
-curl -O "http://localhost:8080/api/v1/packages/SampleLibrary/1.0.0/download"
+## Browse the Feed in a Browser
 
-# Download with custom filename
-curl -o "MyCustomName.nupkg" "http://localhost:8080/api/v1/packages/SampleLibrary/1.0.0/download"
+- Web UI: `http://localhost:5004`
+- Service index: `http://localhost:5003/v3/index.json`
+- Swagger: `http://localhost:5003/swagger`
 
-# Download and verify
-curl -I "http://localhost:8080/api/v1/packages/SampleLibrary/1.0.0/download"
-```
+## Storage Configuration Examples
 
-### Delete Package
-```bash
-# Delete a specific package version
-curl -X DELETE "http://localhost:8080/api/v1/packages/SampleLibrary/1.0.0"
+### Filesystem
 
-# Expected response:
-# {
-#   "success": true,
-#   "data": true,
-#   "message": "Package deleted successfully"
-# }
-```
-
-## PowerShell Examples
-
-### Upload Package
-```powershell
-# Upload using Invoke-RestMethod
-$packagePath = "SampleLibrary.1.0.0.nupkg"
-$uri = "http://localhost:8080/api/v1/packages"
-
-$form = @{
-    package = Get-Item $packagePath
-}
-
-$response = Invoke-RestMethod -Uri $uri -Method Post -Form $form
-Write-Output $response
-```
-
-### Search and Download
-```powershell
-# Search packages
-$searchUri = "http://localhost:8080/api/v1/packages?q=Sample"
-$packages = Invoke-RestMethod -Uri $searchUri -Method Get
-
-# Display results
-$packages.data.packages | Format-Table Id, Version, Description
-
-# Download first package
-if ($packages.data.packages.Count -gt 0) {
-    $pkg = $packages.data.packages[0]
-    $downloadUri = "http://localhost:8080/api/v1/packages/$($pkg.id)/$($pkg.version)/download"
-    Invoke-WebRequest -Uri $downloadUri -OutFile "$($pkg.id).$($pkg.version).nupkg"
-}
-```
-
-## Visual Studio Integration
-
-### Package Manager Console
-```powershell
-# In Visual Studio Package Manager Console
-
-# Install package from Nupack server
-Install-Package SampleLibrary -Source "Nupack Server"
-
-# Update package
-Update-Package SampleLibrary -Source "Nupack Server"
-
-# Uninstall package
-Uninstall-Package SampleLibrary
-```
-
-### Package Manager UI
-1. Go to **Tools** → **NuGet Package Manager** → **Manage NuGet Packages for Solution**
-2. Click on **Settings** (gear icon)
-3. Add new source:
-   - **Name**: Nupack Server
-   - **Source**: http://localhost:5003/v3/index.json
-4. Select "Nupack Server" from the package source dropdown
-5. Browse and install packages
-
-## Testing the Server
-
-### Health Check
-```bash
-# Simple health check
-curl -f "http://localhost:8080/api/v1/packages" && echo "Server is healthy"
-
-# Check if server is responding
-curl -I "http://localhost:8080/packages"
-```
-
-### Load Testing with Apache Bench
-```bash
-# Test package listing endpoint
-ab -n 100 -c 10 "http://localhost:8080/api/v1/packages"
-
-# Test search endpoint
-ab -n 50 -c 5 "http://localhost:8080/api/v1/packages?q=test"
-```
-
-## Automation Scripts
-
-### Batch Upload Script (Bash)
-```bash
-#!/bin/bash
-# upload-packages.sh
-
-NUGET_SERVER="http://localhost:8080/api/v1/packages"
-PACKAGES_DIR="./packages"
-
-for package in "$PACKAGES_DIR"/*.nupkg; do
-    if [ -f "$package" ]; then
-        echo "Uploading $package..."
-        curl -X POST "$NUGET_SERVER" \
-             -H "Content-Type: multipart/form-data" \
-             -F "package=@$package"
-        echo ""
-    fi
-done
-```
-
-### Batch Upload Script (PowerShell)
-```powershell
-# upload-packages.ps1
-
-$nugetServer = "http://localhost:8080/api/v1/packages"
-$packagesDir = "./packages"
-
-Get-ChildItem -Path $packagesDir -Filter "*.nupkg" | ForEach-Object {
-    Write-Host "Uploading $($_.Name)..."
-    
-    $form = @{ package = $_ }
-    try {
-        $response = Invoke-RestMethod -Uri $nugetServer -Method Post -Form $form
-        if ($response.success) {
-            Write-Host "✅ Successfully uploaded $($_.Name)" -ForegroundColor Green
-        } else {
-            Write-Host "❌ Failed to upload $($_.Name): $($response.message)" -ForegroundColor Red
-        }
+```json
+{
+  "PackageStorage": {
+    "Provider": "FileSystem",
+    "FileSystem": {
+      "BasePath": "data/packages"
     }
-    catch {
-        Write-Host "❌ Error uploading $($_.Name): $($_.Exception.Message)" -ForegroundColor Red
-    }
+  }
 }
 ```
+
+### S3-compatible / MinIO
+
+```json
+{
+  "PackageStorage": {
+    "Provider": "S3",
+    "S3": {
+      "BucketName": "nupack-packages",
+      "Region": "us-east-1",
+      "ServiceUrl": "http://localhost:9000",
+      "AccessKey": "minioadmin",
+      "SecretKey": "minioadmin",
+      "Prefix": "packages/",
+      "ForcePathStyle": true
+    }
+  }
+}
+```
+
+## V3 API Examples
+
+### Service index
+
+```bash
+curl http://localhost:5003/v3/index.json
+```
+
+### Search
+
+```bash
+curl "http://localhost:5003/v3/search?q=TestPackage&take=10"
+```
+
+### Package versions
+
+```bash
+curl http://localhost:5003/v3-flatcontainer/testpackage/index.json
+```
+
+### Download package
+
+```bash
+curl -O http://localhost:5003/v3-flatcontainer/testpackage/1.0.0/testpackage.1.0.0.nupkg
+```
+
+### Download nuspec
+
+```bash
+curl http://localhost:5003/v3-flatcontainer/testpackage/1.0.0/testpackage.nuspec
+```
+
+### Registration index
+
+```bash
+curl http://localhost:5003/v3/registrations/testpackage/index.json
+```
+
+### Delete package
+
+```bash
+curl -X DELETE http://localhost:5003/v3/delete/TestPackage/1.0.0
+```
+
+If your deployment enables the optional shared write key:
+
+```bash
+curl -X DELETE http://localhost:5003/v3/delete/TestPackage/1.0.0 -H "X-NuGet-ApiKey: your-write-key"
+```
+
+## Notes
+
+- built-in auth is intentionally minimal: an optional shared write key for `push` and `delete` only
+- storage providers in the repo today are `FileSystem` and `S3`
+- download statistics and unlisting are not supported yet
+- the separate Web app is the official UI; the API `/ui` and `/frontend` routes are legacy demos

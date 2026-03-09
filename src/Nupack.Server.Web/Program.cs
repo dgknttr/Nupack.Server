@@ -11,6 +11,11 @@ builder.Services.Configure<BrandingOptions>(
     builder.Configuration.GetSection(BrandingOptions.SectionName));
 
 // Register HttpClient for NuGet API calls
+builder.Services.AddHttpClient("NupackUploadClient", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+
 builder.Services.AddHttpClient<INuGetApiService, NuGetApiService>(client =>
 {
     client.BaseAddress = new Uri(builder.Configuration.GetValue<string>("NuGetServer:BaseUrl") ?? "http://localhost:5003");
@@ -39,3 +44,7 @@ app.UseAuthorization();
 app.MapRazorPages();
 
 app.Run();
+
+public partial class Program { }
+
+

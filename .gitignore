@@ -447,3 +447,6 @@ pnpm-lock.yaml
 .tmp/
 .cache/
 .nuget/
+
+# Local dotnet CLI cache used during sandboxed verification
+.dotnet-home/

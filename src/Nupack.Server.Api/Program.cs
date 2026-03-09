@@ -1,6 +1,8 @@
 using Nupack.Server.Api.Models;
 using Nupack.Server.Api.Models.V3;
+using Nupack.Server.Api.Extensions;
 using Nupack.Server.Api.Services;
+using Nupack.Server.Storage.Models;
 using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,28 +17,23 @@ builder.Services.AddSwaggerGen(c =>
         Description = @"
 # Nupack Server V3 API
 
-A modern NuGet V3 protocol compliant server built with .NET 8.
+A lightweight NuGet V3 server reference implementation built with .NET 9.
 
-## NuGet V3 Protocol Support
-- ✅ **Service Index**: `/v3/index.json`
-- ✅ **Search Service**: `/v3/search`
-- ✅ **Package Base Address**: `/v3-flatcontainer/`
-- ✅ **Registration**: `/v3/registrations/`
+## Current Focus
+- Reference implementation for self-hosted feeds and learning projects
+- Conservative protocol surface with file system storage
+- Separate Razor Pages web UI as the primary user-facing experience
 
-## Features
-- 🚀 **Full V3 Compliance**: Works with dotnet CLI, Visual Studio 2022+, nuget.exe
-- 📦 **Semantic Versioning**: Proper SemVer support with prerelease handling
-- 🔍 **Advanced Search**: Query, pagination, prerelease filtering
-- 📊 **JSON Responses**: Modern JSON-based API (no XML/OData legacy)
+## Supported V3 Endpoints
+- Supported: `/v3/index.json`, `/v3/search`, `/v3-flatcontainer/*`, `/v3/registrations/*`
+- Supported: `PUT /v3/push`, `DELETE /v3/delete/{id}/{version}`
+- Supported: `/health`
 
-## Usage
-Configure your NuGet client to use: `http://localhost:5003/v3/index.json`
-
-## Quick Test
-Try these endpoints:
-- GET `/v3/index.json` - Service discovery
-- GET `/v3/search?q=TestPackage` - Search packages
-- GET `/v3-flatcontainer/testpackage/index.json` - Package versions
+## Notes
+- Optional shared `X-NuGet-ApiKey` auth can protect write endpoints when `PackageSecurity:WriteApiKey` is configured
+- Rate limiting is not built in yet
+- API-hosted `/ui` and `/frontend` routes are legacy demo surfaces
+- Use `/swagger` and the repository docs for the current support matrix
 "
     });
 
@@ -66,15 +63,18 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.WriteIndented = true;
 });
 
-// Configure package storage options
-builder.Services.Configure<PackageStorageOptions>(
-    builder.Configuration.GetSection(PackageStorageOptions.SectionName));
+// Configure package storage and security options
+builder.Services.Configure<PackageSecurityOptions>(
+    builder.Configuration.GetSection(PackageSecurityOptions.SectionName));
 
 // Register our services
-builder.Services.AddSingleton<IPackageStorageService, FileSystemPackageStorageService>();
+builder.Services.AddNupackStorage(builder.Configuration);
 builder.Services.AddScoped<IPackageService, PackageService>();
 builder.Services.AddScoped<IV3PackageService, V3PackageService>();
 builder.Services.AddScoped<IBaseUrlResolver, BaseUrlResolver>();
+builder.Services.AddScoped<IPackageEndpointAuthorizer, HeaderApiKeyPackageEndpointAuthorizer>();
+builder.Services.AddScoped<IPackageUploadValidator, DefaultPackageUploadValidator>();
+builder.Services.AddScoped<IPackageLifecycleHook, NullPackageLifecycleHook>();
 
 // Add logging
 builder.Services.AddLogging();
@@ -93,20 +93,6 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Nupack Server V3 API");
-        c.RoutePrefix = "swagger";
-        c.DocumentTitle = "Nupack Server V3 API";
-        c.DefaultModelsExpandDepth(-1); // Hide models section by default
-        c.DisplayRequestDuration();
-    });
-}
-
-// Enable Swagger in all environments for demo purposes
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
@@ -167,21 +153,20 @@ app.MapGet("/v3-flatcontainer/{id}/index.json", async (string id, IV3PackageServ
 .Produces(404);
 
 // Package Base Address - Download package
-app.MapGet("/v3-flatcontainer/{id}/{version}/{id2}.{version2}.nupkg", 
-    async (string id, string version, string id2, string version2, IV3PackageService v3Service) =>
+app.MapGet("/v3-flatcontainer/{id}/{version}/{fileName}",
+    async (string id, string version, string fileName, IV3PackageService v3Service) =>
 {
-    // Validate that the path parameters match
-    if (!string.Equals(id, id2, StringComparison.OrdinalIgnoreCase) ||
-        !string.Equals(version, version2, StringComparison.OrdinalIgnoreCase))
+    var expectedFileName = $"{id}.{version}.nupkg";
+    if (!string.Equals(fileName, expectedFileName, StringComparison.OrdinalIgnoreCase))
     {
-        return Results.BadRequest("Package ID and version in path must match");
+        return Results.BadRequest("Package ID and version in path must match the requested file name");
     }
 
     var stream = await v3Service.GetPackageContentAsync(id, version);
     if (stream == null)
         return Results.NotFound();
 
-    return Results.File(stream, "application/octet-stream", $"{id}.{version}.nupkg");
+    return Results.File(stream, "application/octet-stream", expectedFileName);
 })
 .WithName("DownloadPackage")
 .WithSummary("Download package")
@@ -266,17 +251,23 @@ app.MapGet("/v3/registrations/{id}/{version}.json", async (HttpContext context, 
 // ============================================================================
 
 // Upload package
-app.MapPut("/v3/push", async (HttpContext context, IPackageService packageService) =>
+app.MapPut("/v3/push", async (HttpContext context, IPackageService packageService, IPackageEndpointAuthorizer authorizer) =>
 {
     var form = await context.Request.ReadFormAsync();
     var packageFile = form.Files.GetFile("package");
-    
+
     if (packageFile == null)
         return Results.BadRequest("Package file is required");
 
+    var authorization = await authorizer.AuthorizeUploadAsync(context, packageFile, context.RequestAborted);
+    if (!authorization.IsAllowed)
+    {
+        return Results.Problem(statusCode: authorization.StatusCode, detail: authorization.Message, title: "Package write authorization required");
+    }
+
     var request = new PackageUploadRequest(packageFile);
     var result = await packageService.UploadPackageAsync(request);
-    
+
     return result.Success ? Results.Created() : Results.BadRequest(result.Message);
 })
 .WithName("UploadPackage")
@@ -284,11 +275,18 @@ app.MapPut("/v3/push", async (HttpContext context, IPackageService packageServic
 .WithDescription("Upload a new package (.nupkg file)")
 .Accepts<IFormFile>("multipart/form-data")
 .Produces(201)
+.Produces(401)
 .Produces(400);
 
 // Delete package
-app.MapDelete("/v3/delete/{id}/{version}", async (string id, string version, IPackageService packageService) =>
+app.MapDelete("/v3/delete/{id}/{version}", async (HttpContext context, string id, string version, IPackageService packageService, IPackageEndpointAuthorizer authorizer) =>
 {
+    var authorization = await authorizer.AuthorizeDeleteAsync(context, id, version, context.RequestAborted);
+    if (!authorization.IsAllowed)
+    {
+        return Results.Problem(statusCode: authorization.StatusCode, detail: authorization.Message, title: "Package write authorization required");
+    }
+
     var result = await packageService.DeletePackageAsync(id, version);
     return result.Success ? Results.NoContent() : Results.NotFound();
 })
@@ -296,6 +294,7 @@ app.MapDelete("/v3/delete/{id}/{version}", async (string id, string version, IPa
 .WithSummary("Delete package")
 .WithDescription("Delete a specific package version")
 .Produces(204)
+.Produces(401)
 .Produces(404);
 
 // ============================================================================
@@ -313,10 +312,10 @@ app.MapGet("/", (HttpContext context, IV3PackageService v3Service, IBaseUrlResol
 // Health check
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
 
-// Simple web UI
+// Legacy demo UI surface retained for compatibility.
 app.MapGet("/ui", () => Results.Content(GetSimpleWebUI(), "text/html"));
 
-// Modern Frontend UI
+// Legacy demo UI surface retained for compatibility.
 app.MapGet("/frontend", () => Results.Content(GetModernFrontendUI(), "text/html"));
 
 app.Run();
@@ -617,7 +616,7 @@ static string GetModernFrontendUI()
                                     Nupack Server Repository
                                 </h1>
                                 <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
-                                    Modern React-based frontend for your private NuGet package repository.
+                                    Legacy React demo for browsing a self-hosted NuGet V3 feed.
                                 </p>
 
                                 {/* Search */}
@@ -732,3 +731,15 @@ static string GetModernFrontendUI()
 
 // Make Program class accessible for testing
 public partial class Program { }
+
+
+
+
+
+
+
+
+
+
+
+

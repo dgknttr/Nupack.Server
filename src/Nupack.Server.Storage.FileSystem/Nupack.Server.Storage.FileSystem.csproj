@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>Nupack.Server.Storage.FileSystem</AssemblyName>
+    <RootNamespace>Nupack.Server.Storage.FileSystem</RootNamespace>
+    <InternalsVisibleTo>Nupack.Server.Tests</InternalsVisibleTo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nupack.Server.Storage\Nupack.Server.Storage.csproj" />
+  </ItemGroup>
+
+</Project>

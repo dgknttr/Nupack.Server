@@ -1,4 +1,4 @@
-@using Microsoft.Extensions.Options
+﻿@using Microsoft.Extensions.Options
 @using Nupack.Server.Web.Models
 @inject IOptions<BrandingOptions> BrandingOptionsAccessor
 @model Nupack.Server.Web.Models.PackageSearchResult
@@ -16,10 +16,8 @@
                 </svg>
             </div>
             <div class="min-w-0 flex-1">
-                <h3 class="font-semibold text-gray-900 truncate group-hover:text-nuget-blue transition-colors duration-200">
-                    <a asp-page="/Packages/Details" asp-route-id="@Model.Id" class="hover:underline" title="View package details">
-                        @Model.DisplayTitle
-                    </a>
+                <h3 class="font-semibold text-gray-900 truncate group-hover:text-nuget-blue transition-colors duration-200" title="@Model.DisplayTitle">
+                    @Model.DisplayTitle
                 </h3>
                 <div class="flex items-center space-x-2 mt-1">
                     <span class="text-sm text-gray-600">@($"v{Model.LatestVersion}")</span>
@@ -34,21 +32,19 @@
                     }
                     @if (Model.HasMultipleVersions)
                     {
-                        <a asp-page="/Packages/Details" asp-route-id="@Model.Id" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200 transition-colors duration-200">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                             @Model.VersionCount version@(Model.VersionCount != 1 ? "s" : "")
-                        </a>
+                        </span>
                     }
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Description -->
     <p class="text-gray-600 text-sm mb-4 line-clamp-3">
         @Model.DisplayDescription
     </p>
 
-    <!-- Metadata -->
     <div class="space-y-2 mb-4">
         @if (Model.Authors.Any())
         {
@@ -83,11 +79,10 @@
             <svg class="w-3 h-3 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
             </svg>
-            <span>@Model.TotalDownloads.ToString("N0") download@(Model.TotalDownloads != 1 ? "s" : "")</span>
+            <span>@(Model.TotalDownloads > 0 ? $"{Model.TotalDownloads:N0} downloads" : "Download stats unavailable")</span>
         </div>
     </div>
 
-    <!-- Install Command -->
     <div class="bg-gray-50 border border-gray-200 rounded p-2">
         <div class="flex items-center justify-between">
             <div class="flex-1 min-w-0">
@@ -105,27 +100,15 @@
         </div>
     </div>
 
-    <!-- Actions -->
-    <div class="flex items-center justify-between pt-4 border-t border-gray-200">
-        <div class="flex items-center space-x-2">
-            <button onclick="copyInstallCommand('@Model.Id', '@Model.LatestVersion')"
-                    class="flex items-center space-x-1 px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-blue-600 hover:underline transition-all duration-200"
-                    title="Copy install command to clipboard">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                </svg>
-                <span>Copy Command</span>
-            </button>
-        </div>
-
-        <a asp-page="/Packages/Details" asp-route-id="@Model.Id"
-           class="flex items-center space-x-1 text-xs text-gray-400 hover:text-blue-600 hover:underline transition-all duration-200"
-           title="View package details">
-            <span>View Details</span>
+    <div class="flex items-center justify-start pt-4 border-t border-gray-200">
+        <button onclick="copyInstallCommand('@Model.Id', '@Model.LatestVersion')"
+                class="flex items-center space-x-1 px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-blue-600 hover:underline transition-all duration-200"
+                title="Copy install command to clipboard">
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
             </svg>
-        </a>
+            <span>Copy Command</span>
+        </button>
     </div>
 </div>
 
@@ -133,14 +116,13 @@
     function copyInstallCommand(packageId, version) {
         const command = `dotnet add package ${packageId} --version ${version} --source "@brandingOptions.NugetSourceName"`;
         navigator.clipboard.writeText(command).then(() => {
-            showToast(`✓ Install command for ${packageId} v${version} copied!`, 'success');
+            showToast(`Install command for ${packageId} v${version} copied.`, 'success');
 
-            // Visual feedback on the button
             const button = event.target.closest('button');
             if (button) {
                 const originalTitle = button.title;
                 button.title = 'Copied!';
-                button.style.color = '#10b981'; // green-500
+                button.style.color = '#10b981';
                 setTimeout(() => {
                     button.title = originalTitle;
                     button.style.color = '';
@@ -178,5 +160,3 @@
         }, 3000);
     }
 </script>
-
-

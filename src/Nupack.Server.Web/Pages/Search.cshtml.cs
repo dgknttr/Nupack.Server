@@ -22,7 +22,9 @@ public class SearchModel : PageModel
     public BrandingOptions BrandingOptions => _brandingOptions;
 
     [BindProperty(SupportsGet = true)]
-    public string? Query { get; set; }
+    public string? Q { get; set; }
+
+    public string? Query => Q;
 
     [BindProperty(SupportsGet = true)]
     public bool IncludePrerelease { get; set; }
@@ -47,9 +49,10 @@ public class SearchModel : PageModel
 
         try
         {
+            var normalizedQuery = Query.Trim();
             var skip = (Page - 1) * PackagesPerPage;
             var searchResponse = await _nugetApiService.SearchPackagesAsync(
-                query: Query.Trim(),
+                query: normalizedQuery,
                 skip: skip,
                 take: PackagesPerPage,
                 includePrerelease: IncludePrerelease
@@ -64,7 +67,7 @@ public class SearchModel : PageModel
             else
             {
                 ErrorMessage = "Unable to search packages. Please try again.";
-                _logger.LogWarning("Failed to search packages with query: {Query}", Query);
+                _logger.LogWarning("Failed to search packages with query: {Query}", normalizedQuery);
             }
         }
         catch (Exception ex)

@@ -1,37 +1,71 @@
 # Package Storage Configuration
 
-Bu dokümantasyon, Nupack Server'da paket depolama yolunun nasıl yapılandırılacağını açıklar.
+Nupack Server uses an explicit storage provider model. `FileSystem` is the default. `S3` is the first bucket-backed provider and works with AWS S3, MinIO, and compatible endpoints.
 
-## Genel Bakış
-
-Nupack Server, NuGet paketlerinin fiziksel olarak nereye kaydedileceğini `appsettings.json` dosyası üzerinden yapılandırmanıza olanak tanır. Bu özellik Linux, Windows ve Docker ortamlarında cross-platform uyumlu çalışır.
-
-## Yapılandırma
-
-### appsettings.json
+## Preferred Configuration Shape
 
 ```json
 {
   "PackageStorage": {
-    "BasePath": null
+    "Provider": "FileSystem",
+    "FileSystem": {
+      "BasePath": "data/packages"
+    },
+    "S3": {
+      "BucketName": "nupack-packages",
+      "Region": "us-east-1",
+      "ServiceUrl": "http://localhost:9000",
+      "AccessKey": "minioadmin",
+      "SecretKey": "minioadmin",
+      "Prefix": "packages/",
+      "ForcePathStyle": true
+    }
   }
 }
 ```
 
-### Yapılandırma Seçenekleri
+## Provider Selection
 
-#### 1. Default (Önerilen)
+### FileSystem
+
 ```json
 {
   "PackageStorage": {
-    "BasePath": null
+    "Provider": "FileSystem",
+    "FileSystem": {
+      "BasePath": "data/packages"
+    }
   }
 }
 ```
-- `null` değeri ile varsayılan davranış korunur
-- Paketler `WebRootPath/packages` veya `ContentRootPath/packages` dizinine kaydedilir
 
-#### 2. Relative Path (Göreceli Yol)
+When `BasePath` is empty, packages are stored in a local `packages` folder under the app root.
+
+### S3-Compatible
+
+```json
+{
+  "PackageStorage": {
+    "Provider": "S3",
+    "S3": {
+      "BucketName": "nupack-packages",
+      "Region": "us-east-1",
+      "ServiceUrl": "http://localhost:9000",
+      "AccessKey": "minioadmin",
+      "SecretKey": "minioadmin",
+      "Prefix": "packages/",
+      "ForcePathStyle": true
+    }
+  }
+}
+```
+
+`ServiceUrl` is optional for AWS S3 and recommended for MinIO or other S3-compatible endpoints.
+
+## Legacy Compatibility
+
+The legacy shorthand still works and maps to the filesystem provider:
+
 ```json
 {
   "PackageStorage": {
@@ -39,167 +73,40 @@ Nupack Server, NuGet paketlerinin fiziksel olarak nereye kaydedileceğini `appse
   }
 }
 ```
-- Uygulama kök dizinine göre göreceli yol
-- Cross-platform uyumlu (forward slash kullanın)
 
-#### 3. Absolute Path (Mutlak Yol)
-```json
-{
-  "PackageStorage": {
-    "BasePath": "/var/nuget/packages"
-  }
-}
-```
-Linux/macOS için:
-```json
-{
-  "PackageStorage": {
-    "BasePath": "/var/nuget/packages"
-  }
-}
-```
+This is preserved so existing installs do not break, but new docs and examples should prefer `Provider + FileSystem`.
 
-Windows için:
-```json
-{
-  "PackageStorage": {
-    "BasePath": "C:/NuGet/Packages"
-  }
-}
-```
+## Docker Examples
 
-#### 4. Environment Variables (Ortam Değişkenleri)
-```json
-{
-  "PackageStorage": {
-    "BasePath": "${NUGET_PACKAGES_PATH}"
-  }
-}
-```
+### Default filesystem run
 
-Diğer örnekler:
-```json
-{
-  "PackageStorage": {
-    "BasePath": "${HOME}/nuget-packages"
-  }
-}
-```
-
-```json
-{
-  "PackageStorage": {
-    "BasePath": "${APPDATA}/NuGet/Packages"
-  }
-}
-```
-
-## Deployment Senaryoları
-
-### Docker Container
-```json
-{
-  "PackageStorage": {
-    "BasePath": "/app/packages"
-  }
-}
-```
-
-Docker Compose ile volume mount:
 ```yaml
 services:
   nupack-server:
-    image: nupack-server
-    volumes:
-      - ./packages:/app/packages
     environment:
-      - PackageStorage__BasePath=/app/packages
+      - PackageStorage__Provider=FileSystem
+      - PackageStorage__FileSystem__BasePath=/app/data/packages
 ```
 
-### Kubernetes
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: nupack-config
-data:
-  appsettings.json: |
-    {
-      "PackageStorage": {
-        "BasePath": "/data/packages"
-      }
-    }
-```
-
-### Corporate Environment
-```json
-{
-  "PackageStorage": {
-    "BasePath": "/shared/nuget/packages"
-  }
-}
-```
-
-### Development Environment
-```json
-{
-  "PackageStorage": {
-    "BasePath": "dev-packages"
-  }
-}
-```
-
-## Environment Variables ile Override
-
-appsettings.json yerine environment variable kullanabilirsiniz:
+### MinIO-backed run
 
 ```bash
-# Linux/macOS
-export PackageStorage__BasePath="/var/nuget/packages"
-
-# Windows
-set PackageStorage__BasePath=C:\NuGet\Packages
-
-# Docker
-docker run -e PackageStorage__BasePath=/app/packages nupack-server
+PACKAGE_STORAGE_PROVIDER=S3 docker compose --profile s3 up --build
 ```
 
-## Cross-Platform Notları
+The compose file already includes:
+- `PackageStorage__S3__BucketName`
+- `PackageStorage__S3__Region`
+- `PackageStorage__S3__ServiceUrl`
+- `PackageStorage__S3__AccessKey`
+- `PackageStorage__S3__SecretKey`
+- `PackageStorage__S3__ForcePathStyle`
+- `PackageStorage__S3__Prefix`
 
-1. **Path Separators**: Forward slash (/) kullanın - tüm platformlarda çalışır
-2. **Environment Variables**: `${VARIABLE_NAME}` syntax'ı kullanın
-3. **Permissions**: Belirtilen dizine yazma yetkisi olduğundan emin olun
-4. **Volume Mounts**: Docker/Kubernetes'te volume mount'ları doğru yapılandırın
+## Operational Notes
 
-## Güvenlik Önerileri
-
-1. **Permissions**: Sadece gerekli kullanıcılara yazma yetkisi verin
-2. **Backup**: Paket dizinini düzenli olarak yedekleyin
-3. **Monitoring**: Disk alanını izleyin
-4. **Access Control**: Network seviyesinde erişim kontrolü uygulayın
-
-## Troubleshooting
-
-### Log Kontrolü
-Uygulama başladığında şu log mesajını arayın:
-```
-Package storage path resolved to: /path/to/packages
-```
-
-### Yaygın Sorunlar
-
-1. **Permission Denied**: Dizin yazma yetkisi kontrolü
-2. **Path Not Found**: Üst dizinlerin var olduğunu kontrol edin
-3. **Environment Variable Not Found**: Değişken adını kontrol edin
-
-### Debug
-Development ortamında log seviyesini artırın:
-```json
-{
-  "Logging": {
-    "LogLevel": {
-      "Nupack.Server.Api.Services.FileSystemPackageStorageService": "Debug"
-    }
-  }
-}
-```
+- filesystem storage keeps the current on-disk package layout
+- S3 storage stores objects as `{prefix}{id-lower}/{version-lower}/{id-lower}.{version-lower}.nupkg`
+- both providers rebuild metadata by scanning stored `.nupkg` files/objects at startup
+- prefer environment variables or secret stores for S3 credentials
+- for MinIO and local dev, keep `ForcePathStyle=true`

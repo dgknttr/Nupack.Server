@@ -1,8 +1,11 @@
 using FluentAssertions;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Nupack.Server.Api.Models;
 using Nupack.Server.Api.Services;
+using Nupack.Server.Storage.Models;
+using Nupack.Server.Storage.Services;
 using Xunit;
 
 namespace Nupack.Server.Tests.Services;
@@ -10,37 +13,75 @@ namespace Nupack.Server.Tests.Services;
 public class PackageServiceTests
 {
     private readonly Mock<IPackageStorageService> _mockStorageService;
+    private readonly Mock<IPackageUploadValidator> _mockUploadValidator;
+    private readonly Mock<IPackageLifecycleHook> _mockLifecycleHook;
     private readonly Mock<ILogger<PackageService>> _mockLogger;
     private readonly PackageService _packageService;
 
     public PackageServiceTests()
     {
         _mockStorageService = new Mock<IPackageStorageService>();
+        _mockUploadValidator = new Mock<IPackageUploadValidator>();
+        _mockLifecycleHook = new Mock<IPackageLifecycleHook>();
         _mockLogger = new Mock<ILogger<PackageService>>();
-        _packageService = new PackageService(_mockStorageService.Object, _mockLogger.Object);
+
+        _mockUploadValidator
+            .Setup(x => x.ValidateAsync(It.IsAny<PackageUploadRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(PackageUploadValidationResult.Success());
+
+        _packageService = new PackageService(
+            _mockStorageService.Object,
+            _mockUploadValidator.Object,
+            _mockLifecycleHook.Object,
+            _mockLogger.Object);
+    }
+
+    [Fact]
+    public async Task UploadPackageAsync_WithValidPackage_ReturnsSuccessAndInvokesLifecycleHook()
+    {
+        var packageFile = CreatePackageFile();
+        var request = new PackageUploadRequest(packageFile.Object);
+        var metadata = CreatePackageMetadata();
+
+        _mockStorageService.Setup(x => x.StorePackageAsync(It.IsAny<PackageUploadContent>(), It.IsAny<CancellationToken>())).ReturnsAsync(metadata);
+
+        var result = await _packageService.UploadPackageAsync(request);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().Be(metadata);
+        _mockStorageService.Verify(x => x.StorePackageAsync(It.Is<PackageUploadContent>(content => content.FileName == packageFile.Object.FileName && content.Length == packageFile.Object.Length), It.IsAny<CancellationToken>()), Times.Once);
+        _mockLifecycleHook.Verify(x => x.OnPackageUploadedAsync(metadata, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UploadPackageAsync_WhenValidatorRejectsPackage_ReturnsFailureAndSkipsStorage()
+    {
+        var packageFile = CreatePackageFile(fileName: "not-a-package.txt");
+        var request = new PackageUploadRequest(packageFile.Object);
+
+        _mockUploadValidator
+            .Setup(x => x.ValidateAsync(request, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(PackageUploadValidationResult.Fail("Only .nupkg files are supported"));
+
+        var result = await _packageService.UploadPackageAsync(request);
+
+        result.Success.Should().BeFalse();
+        result.Message.Should().Be("Only .nupkg files are supported");
+        _mockStorageService.Verify(x => x.StorePackageAsync(It.IsAny<PackageUploadContent>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockLifecycleHook.Verify(x => x.OnPackageUploadedAsync(It.IsAny<PackageMetadata>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
     public async Task SearchPackagesAsync_WithValidRequest_ReturnsSuccessResponse()
     {
-        // Arrange
         var request = new PackageSearchRequest("test", 0, 10);
-        var expectedPackages = new List<PackageMetadata>
-        {
-            new("TestPackage", "1.0.0", "Test Package", "A test package", "A test package", "Test Author", "Test Owner", "test", "Release notes", "Copyright", "en", null, null, null, null, null, DateTime.UtcNow, DateTime.UtcNow, 1024, "TestPackage.1.0.0.nupkg", false, true, true)
-        };
-        var expectedResponse = new PackageListResponse(expectedPackages, 1);
+        var expectedPackages = new List<PackageMetadata> { CreatePackageMetadata() };
 
-        _mockStorageService.Setup(x => x.GetPackagesAsync("test", 0, 10))
-            .ReturnsAsync(expectedPackages);
-        _mockStorageService.Setup(x => x.GetTotalPackageCountAsync("test"))
-            .ReturnsAsync(1);
+        _mockStorageService.Setup(x => x.GetPackagesAsync("test", 0, 10, It.IsAny<CancellationToken>())).ReturnsAsync(expectedPackages);
+        _mockStorageService.Setup(x => x.GetTotalPackageCountAsync("test", It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
-        // Act
         var result = await _packageService.SearchPackagesAsync(request);
 
-        // Assert
-        result.Should().NotBeNull();
         result.Success.Should().BeTrue();
         result.Data.Should().NotBeNull();
         result.Data!.Packages.Should().HaveCount(1);
@@ -50,16 +91,13 @@ public class PackageServiceTests
     [Fact]
     public async Task SearchPackagesAsync_WhenStorageThrowsException_ReturnsFailureResponse()
     {
-        // Arrange
         var request = new PackageSearchRequest("test", 0, 10);
-        _mockStorageService.Setup(x => x.GetPackagesAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>()))
+        _mockStorageService
+            .Setup(x => x.GetPackagesAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("Storage error"));
 
-        // Act
         var result = await _packageService.SearchPackagesAsync(request);
 
-        // Assert
-        result.Should().NotBeNull();
         result.Success.Should().BeFalse();
         result.Message.Should().Be("Failed to search packages");
         result.Data.Should().BeNull();
@@ -68,84 +106,89 @@ public class PackageServiceTests
     [Fact]
     public async Task GetPackageAsync_WithExistingPackage_ReturnsSuccessResponse()
     {
-        // Arrange
-        var packageId = "TestPackage";
-        var version = "1.0.0";
-        var expectedPackage = new PackageMetadata(
-            packageId, version, "Test Package", "A test package", "A test package",
-            "Test Author", "Test Owner", "test", "Release notes", "Copyright", "en", null, null, null, null, null, DateTime.UtcNow, DateTime.UtcNow, 1024, "TestPackage.1.0.0.nupkg", false, true, true);
+        var metadata = CreatePackageMetadata();
+        _mockStorageService.Setup(x => x.GetPackageAsync(metadata.Id, metadata.Version, It.IsAny<CancellationToken>())).ReturnsAsync(metadata);
 
-        _mockStorageService.Setup(x => x.GetPackageAsync(packageId, version))
-            .ReturnsAsync(expectedPackage);
+        var result = await _packageService.GetPackageAsync(metadata.Id, metadata.Version);
 
-        // Act
-        var result = await _packageService.GetPackageAsync(packageId, version);
-
-        // Assert
-        result.Should().NotBeNull();
         result.Success.Should().BeTrue();
-        result.Data.Should().NotBeNull();
-        result.Data!.Id.Should().Be(packageId);
-        result.Data.Version.Should().Be(version);
+        result.Data.Should().Be(metadata);
     }
 
     [Fact]
     public async Task GetPackageAsync_WithNonExistentPackage_ReturnsNotFoundResponse()
     {
-        // Arrange
-        var packageId = "NonExistentPackage";
-        var version = "1.0.0";
-
-        _mockStorageService.Setup(x => x.GetPackageAsync(packageId, version))
+        _mockStorageService.Setup(x => x.GetPackageAsync("NonExistentPackage", "1.0.0", It.IsAny<CancellationToken>()))
             .ReturnsAsync((PackageMetadata?)null);
 
-        // Act
-        var result = await _packageService.GetPackageAsync(packageId, version);
+        var result = await _packageService.GetPackageAsync("NonExistentPackage", "1.0.0");
 
-        // Assert
-        result.Should().NotBeNull();
         result.Success.Should().BeFalse();
         result.Message.Should().Be("Package not found");
         result.Data.Should().BeNull();
     }
 
     [Fact]
-    public async Task DeletePackageAsync_WithExistingPackage_ReturnsSuccessResponse()
+    public async Task DeletePackageAsync_WithExistingPackage_ReturnsSuccessAndInvokesLifecycleHook()
     {
-        // Arrange
-        var packageId = "TestPackage";
-        var version = "1.0.0";
+        _mockStorageService.Setup(x => x.DeletePackageAsync("TestPackage", "1.0.0", It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
-        _mockStorageService.Setup(x => x.DeletePackageAsync(packageId, version))
-            .ReturnsAsync(true);
+        var result = await _packageService.DeletePackageAsync("TestPackage", "1.0.0");
 
-        // Act
-        var result = await _packageService.DeletePackageAsync(packageId, version);
-
-        // Assert
-        result.Should().NotBeNull();
         result.Success.Should().BeTrue();
         result.Data.Should().BeTrue();
         result.Message.Should().Be("Package deleted successfully");
+        _mockLifecycleHook.Verify(x => x.OnPackageDeletedAsync("TestPackage", "1.0.0", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task DeletePackageAsync_WithNonExistentPackage_ReturnsNotFoundResponse()
     {
-        // Arrange
-        var packageId = "NonExistentPackage";
-        var version = "1.0.0";
+        _mockStorageService.Setup(x => x.DeletePackageAsync("NonExistentPackage", "1.0.0", It.IsAny<CancellationToken>())).ReturnsAsync(false);
 
-        _mockStorageService.Setup(x => x.DeletePackageAsync(packageId, version))
-            .ReturnsAsync(false);
+        var result = await _packageService.DeletePackageAsync("NonExistentPackage", "1.0.0");
 
-        // Act
-        var result = await _packageService.DeletePackageAsync(packageId, version);
-
-        // Assert
-        result.Should().NotBeNull();
         result.Success.Should().BeFalse();
         result.Message.Should().Be("Package not found");
         result.Data.Should().BeFalse();
+        _mockLifecycleHook.Verify(x => x.OnPackageDeletedAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    private static Mock<IFormFile> CreatePackageFile(string fileName = "TestPackage.1.0.0.nupkg", long length = 1024)
+    {
+        var stream = new MemoryStream(new byte[] { 1, 2, 3 });
+        var file = new Mock<IFormFile>();
+        file.SetupGet(x => x.FileName).Returns(fileName);
+        file.SetupGet(x => x.Length).Returns(length);
+        file.Setup(x => x.OpenReadStream()).Returns(stream);
+        return file;
+    }
+
+    private static PackageMetadata CreatePackageMetadata()
+    {
+        return new PackageMetadata(
+            "TestPackage",
+            "1.0.0",
+            "Test Package",
+            "A test package",
+            "A test package",
+            "Test Author",
+            "Test Owner",
+            "test",
+            "Release notes",
+            "Copyright",
+            "en",
+            null,
+            null,
+            null,
+            null,
+            null,
+            DateTime.UtcNow,
+            DateTime.UtcNow,
+            1024,
+            "TestPackage.1.0.0.nupkg",
+            false,
+            true,
+            true);
     }
 }

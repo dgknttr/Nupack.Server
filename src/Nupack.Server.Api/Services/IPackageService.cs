@@ -1,4 +1,5 @@
 using Nupack.Server.Api.Models;
+using Nupack.Server.Storage.Models;
 
 namespace Nupack.Server.Api.Services;
 
