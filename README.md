@@ -1,345 +1,276 @@
-# 📦 Nupack Server - Self-Hosted NuGet Package Repository
+# Nupack Server
 
 ![CI](https://github.com/dgknttr/Nupack.Server/actions/workflows/ci.yml/badge.svg)
 ![Security](https://github.com/dgknttr/Nupack.Server/actions/workflows/security.yml/badge.svg)
 ![CodeQL](https://github.com/dgknttr/Nupack.Server/actions/workflows/codeql.yml/badge.svg)
 
-A modern, **open-source NuGet v3 server implementation** with web interface, built using ASP.NET Core 9. This **private NuGet package repository** provides a powerful **NuGet.Server alternative** for hosting NuGet packages, whether for **enterprise organizations**, **development teams**, or **community package repositories**.
+Nupack Server is a lightweight, self-hosted **NuGet V3 server reference implementation** built with ASP.NET Core 9.
 
-**🔍 Keywords**: *self-hosted NuGet server, private NuGet repository, NuGet.Server alternative, enterprise package management, Docker NuGet hosting, ASP.NET Core NuGet server*
+**30-second pitch:** fork it, run it, study it, or adapt it into your own self-hosted NuGet feed.
 
-![NuGet v3 API](https://img.shields.io/badge/NuGet-v3%20API-blue) ![ASP.NET Core](https://img.shields.io/badge/ASP.NET%20Core-9.0-purple) ![Docker](https://img.shields.io/badge/Docker-Ready-blue) ![Self-Hosted](https://img.shields.io/badge/Self--Hosted-✓-green) ![Private Repository](https://img.shields.io/badge/Private%20Repository-✓-orange) ![License](https://img.shields.io/badge/License-MIT-green) ![Enterprise Ready](https://img.shields.io/badge/Enterprise-Ready-red)
+It is designed to be:
+- easy to fork
+- easy to understand
+- easy to customize
+- honest about what is supported today
 
-## 📸 Screenshots & Interface Preview
+This repository is **not** trying to compete with full package platforms. The goal is a solid starter kit for teams, side projects, labs, and contributors who want a hackable NuGet feed they can run, study, and evolve.
 
-<div align="center">
+## Quick Paths
 
-### 🏠 **Main Dashboard - Package Overview**
-*Browse and search your private NuGet packages with an intuitive web interface*
+- Want to try it now: jump to [Quickstart](#quickstart)
+- Want to run it with containers: jump to [Docker-First Run](#docker-first-run)
+- Want object storage: jump to [Package Storage](#package-storage)
+- Want to contribute: start with [CONTRIBUTING.md](CONTRIBUTING.md)
 
-![Main Dashboard](docs/screenshots/dashboard-preview.png)
+## Why This Exists
 
-### 📦 **Package Details - Installation Commands**
-*Detailed package information with copy-to-clipboard install commands*
+Nupack Server exists for teams and contributors who want a small, readable NuGet V3 server they can actually fork and reshape, without signing up for a larger package platform.
 
-![Package Details](docs/screenshots/package-details-preview.png)
+## Who This Is For
 
-### ⬆️ **Package Upload - Web Interface**
-*Easy drag-and-drop package upload directly through the web browser*
+Use this repo if you want to:
+- run a small self-hosted NuGet feed with a separate web UI
+- learn how the NuGet V3 protocol hangs together in ASP.NET Core
+- fork a starter implementation and add your own auth, storage, or UI
+- embed the ideas into your own solution later
 
-![Package Upload](docs/screenshots/upload-interface-preview.png)
+This repo is a poor fit if you need:
+- multi-tenant package hosting
+- full built-in authentication and authorization
+- unlisting or download analytics
+- enterprise workflow features or operational guarantees
 
-</div></div>
+## Current Shape
 
-## 📋 Features
+The solution contains two app hosts and three storage projects:
+- `src/Nupack.Server.Api`: the NuGet V3 API host
+- `src/Nupack.Server.Web`: the official Razor Pages web UI
+- `src/Nupack.Server.Storage`: shared storage contracts and metadata helpers
+- `src/Nupack.Server.Storage.FileSystem`: default filesystem provider
+- `src/Nupack.Server.Storage.S3`: S3-compatible provider for AWS S3, MinIO, and similar endpoints
 
-### Core Functionality
-- **NuGet V3 API** - Basic compatibility with Visual Studio, dotnet CLI, and nuget.exe
-- **Package Management** - Upload and manage package versions
-- **Search** - Simple package search functionality
-- **Package Details** - View package information and install commands
+The API also contains `/ui` and `/frontend` demo routes, but those are **legacy demo surfaces** and not part of the official supported UI story.
 
-### Web Interface
-- **Responsive Design** - Works on desktop and mobile devices
-- **Package Browsing** - Browse available packages with basic filtering
-- **Install Commands** - Copy-to-clipboard functionality for package installation
-- **Health Status** - Basic server health monitoring
+Package metadata is still built conservatively by scanning stored `.nupkg` files or objects at startup and caching the results in memory.
 
-### Configuration & Deployment
-- **Customizable Branding** - Configure for any organization or community
-- **Docker Support** - Easy containerized deployment for any environment
-- **Environment Configuration** - Flexible configuration via appsettings.json or environment variables
-- **Open Source** - MIT licensed for free use, modification, and distribution
+## What Works Today
 
-## 🚀 Getting Started - Deploy Your Private NuGet Server
+| Capability | Status | Notes |
+| --- | --- | --- |
+| Service index | Supported | `/v3/index.json` |
+| Search | Supported | Basic search, pagination, prerelease filter |
+| Flat container versions | Supported | `/v3-flatcontainer/{id}/index.json` |
+| Package download | Supported | `.nupkg` download endpoint |
+| Registration index/page/leaf | Supported | Simplified registration model |
+| Package push | Supported | `PUT /v3/push` |
+| Package delete | Supported | `DELETE /v3/delete/{id}/{version}` |
+| Health endpoint | Supported | `/health` |
+| Web browse/search/upload | Supported | Separate Web app is the official UI |
+| Nuspec endpoint | Supported | Returns extracted `.nuspec` XML |
+| Storage providers | Supported | `FileSystem` and `S3` are built in |
+| SemVer and prerelease handling | Partial | Core flows work; coverage is still growing |
+| Authentication | Partial | Optional shared API key for `push` and `delete` when configured |
+| Unlist | Not supported | |
+| Download stats | Not supported | UI treats stats as unavailable |
 
-Set up your own **self-hosted NuGet package repository** in minutes! This guide will help you deploy a **private NuGet server** that serves as a powerful **NuGet.Server alternative** for your organization.
+## Non-Goals for the Current Release Line
+
+The current `0.x` line is intentionally conservative.
+
+Not in scope right now:
+- full built-in auth, identity, or policy management
+- enterprise positioning or compliance claims
+- embeddable NuGet package distribution
+- persistent external metadata indexes or database catalogs
+- advanced admin workflows
+
+## Quickstart
 
 ### Prerequisites
-- .NET 9.0 SDK (or .NET 8.0 for compatibility)
-- (Optional) Docker for containerized deployment
-- (Optional) Node.js for CSS development
+- .NET 9 SDK
+- Docker (optional)
 
-### 1. Clone and Setup
+### 1. Clone and restore
+
 ```bash
-git clone https://github.com/dgknttr/nupack-server.git
-cd nupack-server
+git clone https://github.com/dgknttr/Nupack.Server.git
+cd Nupack.Server
+dotnet restore
 ```
 
-> **Note**: This is an open-source project. Feel free to fork, modify, and adapt it to your needs!
+The repo ships with a root `NuGet.Config` that clears machine-specific feeds and restores from `nuget.org`, so local setup does not depend on your global NuGet configuration.
 
-### 2. Configuration
-Copy the example configuration:
+### 2. Start the API and Web UI
+
 ```bash
-cp src/Nupack.Server.Web/appsettings.example.json src/Nupack.Server.Web/appsettings.json
-```
+# Terminal 1
+dotnet run --project src/Nupack.Server.Api --urls "http://localhost:5003"
 
-Update `appsettings.json` with your deployment details:
-```json
-{
-  "Branding": {
-    "CompanyName": "Your Company Name",
-    "NugetSourceUrl": "https://nuget.yourdomain.com/v3/index.json"
-  },
-  "PackageStorage": {
-    "BasePath": null
-  }
-}
-```
-
-#### Package Storage Configuration
-You can configure where packages are physically stored:
-
-- **Default** (`null`): Uses `packages` folder in WebRootPath or ContentRootPath
-- **Relative path**: `"data/packages"` - relative to application root
-- **Absolute path**: `"/var/nuget/packages"` or `"C:/NuGet/Packages"`
-- **Environment variables**: `"${NUGET_PACKAGES_PATH}"` or `"${HOME}/nuget-packages"`
-
-See [Package Storage Configuration](docs/package-storage-configuration.md) for detailed examples and deployment scenarios.
-
-> **Note**: Only `CompanyName` and `NugetSourceUrl` are configurable. All other branding elements are fixed to maintain consistent "Nupack Server" identity.
-
-### 3. Run the Application
-```bash
-# Start both API and Web UI
-dotnet run --project src/Nupack.Server.Api --urls "http://localhost:5003" &
+# Terminal 2
 dotnet run --project src/Nupack.Server.Web --urls "http://localhost:5004"
 ```
 
-### 4. Access the Server
-- **Web Interface**: http://localhost:5004
-- **NuGet API Endpoint**: http://localhost:5003/v3/index.json
+### 3. Configure a client
 
-## 🌍 Open Source Benefits
-
-This project is designed to serve the broader .NET and NuGet community by providing:
-
-### For Developers
-- **Learning Resource** - Study a real-world NuGet server implementation
-- **Customization Base** - Fork and modify for specific needs
-- **No Vendor Lock-in** - Full control over your package hosting
-
-### For Organizations
-- **Cost-Effective** - Free alternative to commercial NuGet hosting
-- **Privacy Control** - Keep sensitive packages on your own infrastructure
-- **Compliance** - Meet specific security and regulatory requirements
-
-### For the Community
-- **Collaborative Development** - Community-driven improvements and features
-- **Knowledge Sharing** - Learn from and contribute to open-source practices
-- **Ecosystem Growth** - Strengthen the .NET package management ecosystem
-
-## 📦 Using the Server
-
-### Publishing Packages
 ```bash
-# Upload packages using dotnet CLI
-dotnet nuget push package.nupkg --source http://localhost:5003/v3/index.json
-
-# Or use the web interface upload page
-# Navigate to http://localhost:5004/Upload
+dotnet nuget add source "http://localhost:5003/v3/index.json" --name "Nupack Server"
 ```
 
-### Installing Packages
-```bash
-# Add the server as a package source
-dotnet nuget add source "https://your-nuget-server.com/v3/index.json" --name "Nupack Server"
+### 4. Push a package
 
-# Install packages from your server
-dotnet add package YourPackage --source "Nupack Server"
+```bash
+dotnet nuget push path/to/YourPackage.1.0.0.nupkg --source "Nupack Server"
 ```
 
-## ⚙️ Configuration
+If you configure an optional shared write key for internal deployments, include it on push:
 
-### Branding Options
-Only two values are configurable through `appsettings.json`:
+```bash
+dotnet nuget push path/to/YourPackage.1.0.0.nupkg --source "Nupack Server" --api-key "your-write-key"
+```
+
+### 5. Browse the feed
+
+- Web UI: `http://localhost:5004`
+- API service index: `http://localhost:5003/v3/index.json`
+- Swagger: `http://localhost:5003/swagger`
+
+## Docker-First Run
+
+Filesystem remains the default compose path:
+
+```bash
+docker compose up --build
+```
+
+S3-compatible local development uses MinIO through an optional profile:
+
+```bash
+PACKAGE_STORAGE_PROVIDER=S3 docker compose --profile s3 up --build
+```
+
+Default ports:
+- API: `http://localhost:5003`
+- Web UI: `http://localhost:5004`
+- MinIO API when profile enabled: `http://localhost:9000`
+- MinIO console when profile enabled: `http://localhost:9001`
+
+## Package Storage
+
+Preferred configuration shape:
 
 ```json
 {
-  "Branding": {
-    "CompanyName": "Your Organization",
-    "NugetSourceUrl": "https://nuget.yourdomain.com/v3/index.json"
+  "PackageStorage": {
+    "Provider": "FileSystem",
+    "FileSystem": {
+      "BasePath": "data/packages"
+    },
+    "S3": {
+      "BucketName": "nupack-packages",
+      "Region": "us-east-1",
+      "ServiceUrl": "http://localhost:9000",
+      "AccessKey": "minioadmin",
+      "SecretKey": "minioadmin",
+      "Prefix": "packages/",
+      "ForcePathStyle": true
+    }
   }
 }
 ```
 
-All other branding elements (ProductName, RepositoryTitle, etc.) are fixed to maintain consistent "Nupack Server" identity across all deployments.
+The legacy shorthand still works for existing filesystem installs:
 
-### Available Pages
-- **Home** (`/`) - Package overview and statistics
-- **Search** (`/Search`) - Search and filter packages
-- **Package Details** (`/Packages/Details/{id}`) - Detailed package information
-- **Upload** (`/Upload`) - Upload new packages via web interface
-
-### 🎯 Real-World Use Cases & Scenarios
-
-#### 🏢 **Enterprise & Corporate Scenarios**
-- **Internal Package Repository**: Host proprietary .NET libraries and shared components across development teams
-- **Microservices Architecture**: Centralized package management for distributed systems and service libraries
-- **CI/CD Pipeline Integration**: Automated package publishing and consumption in DevOps workflows
-- **Compliance & Security**: Keep sensitive packages on-premises to meet regulatory requirements (GDPR, HIPAA, SOX)
-- **Multi-Team Collaboration**: Share reusable components between different departments and projects
-
-#### 🌐 **Community & Open Source Scenarios**
-- **Open Source Project Hosting**: Alternative to nuget.org for community packages and pre-release versions
-- **Regional Package Mirrors**: Faster package access for specific geographic regions or organizations
-- **Educational Institutions**: Teaching package management and software distribution concepts
-- **Startup & Small Teams**: Cost-effective alternative to commercial NuGet hosting services
-- **Development Sandbox**: Testing and experimenting with package distribution before public release
-
-#### 🔧 **Technical & Development Scenarios**
-- **Offline Development**: Air-gapped environments where internet access is restricted
-- **Custom Package Workflows**: Specialized package validation, approval, and distribution processes
-- **Legacy System Support**: Hosting older package versions not available on public repositories
-- **Performance Optimization**: Reduced latency and bandwidth usage for frequently accessed packages
-- **Backup & Redundancy**: Secondary package repository for business continuity planning
-
-## 🐳 Docker Deployment
-
-The project includes a Docker setup for easy deployment:
-
-```bash
-# Build and run with Docker Compose
-docker-compose up -d
+```json
+{
+  "PackageStorage": {
+    "BasePath": "data/packages"
+  }
+}
 ```
 
-This will start both the API server and web interface with the following ports:
-- **API Server**: http://localhost:5003 (HTTP), https://localhost:5001 (HTTPS)
-- **Web Interface**: http://localhost:5004 (HTTP), https://localhost:5002 (HTTPS)
+See [package storage configuration](docs/package-storage-configuration.md) for more examples.
 
-You can customize the configuration by editing the environment variables in `docker-compose.yml`.
+Optional write auth for internal deployments can be enabled without changing read endpoints:
 
-## 🔧 Additional Configuration
-
-### Environment Variables
-Configuration values can be overridden using environment variables:
-
-```bash
-# Example environment variables
-Branding__ProductName="Custom NuGet Server"
-Branding__CompanyName="Custom Company"
-NuGetServer__BaseUrl="https://your-domain.com"
+```json
+{
+  "PackageSecurity": {
+    "WriteApiKey": "set-via-env-or-secret-store"
+  }
+}
 ```
 
-### Health Monitoring
-- **Web UI Health**: `http://localhost:5004/health`
-- **API Health**: `http://localhost:5003/health`
+Prefer the environment variable `PackageSecurity__WriteApiKey` or a secret store over committed configuration values.
 
-Both endpoints return JSON with basic server status information.
+## Architecture at a Glance
 
-## 🤝 Contributing
+- API host: ASP.NET Core Minimal APIs for NuGet V3 endpoints and simple operational routes
+- Storage: provider-based package storage with startup scan plus in-memory metadata cache
+- UI: separate Razor Pages app that consumes the API over `HttpClient`
+- Tests: unit and integration tests in `tests/Nupack.Server.Tests`, including filesystem contract tests and S3/MinIO-ready coverage
 
-We welcome contributions from the community! This is an open-source project and we appreciate any help to make it better.
+See [architecture overview](docs/architecture.md) and [customization guide](docs/customization-guide.md).
 
-### Ways to Contribute
-- 🐛 **Report Issues** - Found a bug? Let us know!
-- 💡 **Suggest Features** - Have an idea? We'd love to hear it
-- 📝 **Improve Documentation** - Help make the docs clearer
-- 🔧 **Submit Code** - Fix bugs or add new features
-- 🧪 **Add Tests** - Help improve code coverage
+## How to Fork and Customize
 
-### Getting Started with Development
-1. **Fork** the repository on GitHub
-2. **Clone** your fork locally
-3. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-4. **Make** your changes
-5. **Test** your changes thoroughly
-6. **Commit** your changes (`git commit -m 'Add amazing feature'`)
-7. **Push** to your branch (`git push origin feature/amazing-feature`)
-8. **Open** a Pull Request
+Common extension paths:
+- keep `AddNupackStorage(configuration)` and swap the provider configuration only
+- replace `IPackageStorageService` if you want a new storage backend beyond filesystem or S3
+- replace `IPackageEndpointAuthorizer` to add auth or policy gates
+- replace `IPackageUploadValidator` for custom ingest rules
+- replace `IPackageLifecycleHook` for audit, webhook, or metrics hooks
+- replace the Web app entirely and keep the API host
 
-### Development Setup
+If you want to embed these ideas later, the intended direction is to extract reusable packages after the API and docs have stabilized.
 
-#### Project Structure
-```
-src/
-├── Nupack.Server.Api/          # NuGet V3 API implementation
-├── Nupack.Server.Web/          # Web interface
-└── tests/                      # Unit tests
-```
+## Documentation
 
-#### Building from Source
-```bash
-# Restore dependencies and build
-dotnet restore
-dotnet build
+- [V3 API guide](docs/v3-api-guide.md)
+- [Architecture overview](docs/architecture.md)
+- [Customization guide](docs/customization-guide.md)
+- [Package storage configuration](docs/package-storage-configuration.md)
+- [Community roadmap](docs/roadmap.md)
+- [Usage examples](examples/usage-examples.md)
 
-# Run tests
-dotnet test
-```
+## Releases
 
-### Community Guidelines
-- Be respectful and inclusive
-- Follow existing code style and conventions
-- Write clear commit messages
-- Add tests for new features when possible
-- Update documentation as needed
+The public release surface for the current phase is:
+- source code in this repository
+- GitHub releases
+- Docker images from CI
 
-## 📄 License
+NuGet package distribution for the server itself is intentionally deferred until the public API shape is stable enough to support embedding.
 
-This project is licensed under the **MIT License**, which means:
-- ✅ **Free to use** - Use it anywhere, for any purpose
-- ✅ **Free to modify** - Adapt it to your specific needs
-- ✅ **Free to distribute** - Share your modifications with others
-- ✅ **Commercial use allowed** - Use it in commercial projects
+## Contributing
 
-See the [LICENSE](LICENSE) file for the complete license text.
+Start with [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## 🌟 Community & Support
+The short version:
+- keep changes small and easy to review
+- update docs when behavior changes
+- add or extend tests for protocol-facing or storage-provider work
+- prefer clarity over feature count
 
-### Getting Help
-- 📖 **Documentation** - Check this README and code comments
-- 🐛 **Issues** - Report bugs or request features on GitHub Issues
-- 💬 **Discussions** - Join community discussions for questions and ideas
-- 📧 **Community** - Connect with other users and contributors
+This repository also follows [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
-### Acknowledgments
-- Built with [ASP.NET Core](https://docs.microsoft.com/en-us/aspnet/core/) - Microsoft's open-source web framework
-- UI styled with [Tailwind CSS](https://tailwindcss.com/) - A utility-first CSS framework
-- Inspired by the official [nuget.org](https://www.nuget.org/) interface
-- Thanks to all contributors who help improve this project
+## Security
 
-## 🔍 SEO & Discovery Keywords
+The current release line supports an optional shared `X-NuGet-ApiKey` for write operations when `PackageSecurity:WriteApiKey` is configured. If you expose this server outside a trusted environment, still use TLS, network controls, and stronger authentication layers where appropriate.
 
-**Primary Keywords**: `self-hosted nuget server`, `private nuget repository`, `nuget.server alternative`, `enterprise package management`, `asp.net core nuget server`
+See [SECURITY.md](SECURITY.md) for the current policy and deployment guidance.
 
-**Secondary Keywords**: `docker nuget hosting`, `private package repository`, `nuget v3 server`, `open source nuget server`, `corporate nuget hosting`, `internal package management`, `nuget server implementation`, `package repository hosting`
+## Roadmap
 
-**Technology Stack**: `ASP.NET Core`, `C#`, `Docker`, `NuGet v3 API`, `Tailwind CSS`, `Enterprise Ready`, `Self-Hosted`, `Open Source`
+The roadmap is phased:
+- Phase 1: trust reset, docs honesty, onboarding, support matrix
+- Phase 2: protocol correctness and smoke coverage
+- Phase 3: extension seams and customization guidance
+- Phase 4: package extraction for embedding
 
----
+See [docs/roadmap.md](docs/roadmap.md) for details.
 
-## 🌟 Support
+## License
 
-If you find this project useful, please consider giving it a ⭐️ on GitHub to help others discover it!
+MIT
 
-## 🌟 Why Choose Nupack Server?
-
-### ✅ **vs. NuGet.Server (Official)**
-- ✅ Modern ASP.NET Core 9 (vs. legacy .NET Framework)
-- ✅ Web interface included (vs. API-only)
-- ✅ Docker support (vs. IIS-only)
-- ✅ Active development (vs. minimal updates)
-- ✅ Enterprise features (vs. basic functionality)
-
-### ✅ **vs. Commercial Solutions**
-- ✅ **Free & Open Source** (vs. expensive licensing)
-- ✅ **Full control** (vs. vendor lock-in)
-- ✅ **Customizable** (vs. fixed features)
-- ✅ **Self-hosted** (vs. cloud dependency)
-- ✅ **Community-driven** (vs. corporate priorities)
-
-### ✅ **vs. Other Open Source Alternatives**
-- ✅ **Lightweight & Fast** (optimized for performance)
-- ✅ **Easy deployment** (Docker + simple configuration)
-- ✅ **Modern UI** (responsive web interface)
-- ✅ **Well documented** (comprehensive guides)
-- ✅ **Active community** (regular updates & support)
-
----
-
-*A modern, **self-hosted NuGet server** and **private package repository** solution for the .NET community.*
-
-**🚀 Deploy your private NuGet server today • 🔒 Keep your packages secure • 💰 Save on hosting costs**
-
-**🤝 Contributions welcome • 📄 MIT Licensed • 🌟 Made by the community, for the community**

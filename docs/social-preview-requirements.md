@@ -1,4 +1,4 @@
-# GitHub Social Preview Image Requirements
+﻿# GitHub Social Preview Image Requirements
 
 ## Overview
 GitHub uses social preview images (Open Graph images) when the repository is shared on social media platforms, search results, and GitHub's own discovery features.
@@ -13,7 +13,7 @@ GitHub uses social preview images (Open Graph images) when the repository is sha
 
 ### Content Guidelines
 - **Clear branding**: "Nupack Server" prominently displayed
-- **Key value proposition**: "Self-Hosted NuGet Server" or "Private NuGet Repository"
+- **Key value proposition**: "Self-Hosted NuGet Server" or "NuGet V3 Starter Kit"
 - **Technology indicators**: ASP.NET Core, Docker, NuGet v3 logos/badges
 - **Visual appeal**: Professional design that stands out in feeds
 - **Readable text**: Large enough to read in small previews
@@ -23,8 +23,8 @@ GitHub uses social preview images (Open Graph images) when the repository is sha
 ### Text Content
 - **Main headline**: "Nupack Server"
 - **Subtitle**: "Self-Hosted NuGet Package Repository"
-- **Key features**: "Docker Ready • ASP.NET Core • Enterprise Ready"
-- **Call to action**: "Deploy Your Private NuGet Server"
+- **Key features**: "Docker Ready • ASP.NET Core • NuGet V3"
+- **Call to action**: "Fork Your NuGet V3 Starter Kit"
 
 ### Visual Elements
 - **Background**: Professional gradient or tech-themed background
@@ -35,7 +35,7 @@ GitHub uses social preview images (Open Graph images) when the repository is sha
 ### Brand Consistency
 - Use NuGet's official blue color (#004880)
 - Include .NET/Microsoft-friendly colors
-- Professional, enterprise-ready appearance
+- Professional, trustworthy open-source appearance
 - Clean, modern design aesthetic
 
 ## Tools for Creation
@@ -64,3 +64,4 @@ This image will appear when the repository is:
 - Found in Google search results
 - Featured in GitHub's trending/discovery sections
 - Linked from other websites or documentation
+

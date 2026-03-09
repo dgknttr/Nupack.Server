@@ -1,175 +1,102 @@
-# Contributing to Nupack Server
+﻿# Contributing to Nupack Server
 
-We love your input! We want to make contributing to Nupack Server as easy and transparent as possible, whether it's:
+Thanks for helping with Nupack Server.
 
-- Reporting a bug
-- Discussing the current state of the code
-- Submitting a fix
-- Proposing new features
-- Becoming a maintainer
+This repository is maintained as a small, fork-friendly NuGet V3 server reference implementation. The best contributions improve one or more of these qualities:
+- protocol correctness
+- documentation honesty
+- onboarding speed
+- code clarity
+- customization friendliness
 
-## Development Process
+## Before You Start
 
-We use GitHub to host code, to track issues and feature requests, as well as accept pull requests.
+Please read:
+- [README.md](README.md)
+- [docs/v3-api-guide.md](docs/v3-api-guide.md)
+- [docs/roadmap.md](docs/roadmap.md)
 
-## Pull Requests
-
-Pull requests are the best way to propose changes to the codebase. We actively welcome your pull requests:
-
-1. **Fork the repo** and create your branch from `main`.
-2. **Use proper branch naming**:
-   - `feature/your-feature-name` for new features
-   - `bugfix/issue-description` for bug fixes
-   - `docs/documentation-update` for documentation changes
-3. **Add tests** if you've added code that should be tested.
-4. **Update documentation** if you've changed APIs.
-5. **Ensure the test suite passes** by running `dotnet test`.
-6. **Format your code** using `dotnet format` for C# and Prettier for CSS/JS.
-7. **Make sure your code follows** the existing code style.
-8. **Issue that pull request!**
-
-## Development Setup
+## Local Setup
 
 ### Prerequisites
-
-- .NET 8.0 SDK or higher
+- .NET 9 SDK
 - Git
-- Your favorite IDE (Visual Studio, VS Code, Rider, etc.)
+- Docker (optional)
 
-### Local Development
-
-1. **Clone your fork**:
-   ```bash
-   git clone https://github.com/your-username/nupack-server.git
-   cd nupack-server
-   ```
-
-2. **Install dependencies**:
-   ```bash
-   dotnet restore
-   ```
-
-3. **Build the project**:
-   ```bash
-   dotnet build
-   ```
-
-4. **Run tests**:
-   ```bash
-   dotnet test
-   ```
-
-5. **Start the development servers**:
-   ```bash
-   # Terminal 1: Start the NuGet API server
-   cd src/Nupack.Server.Api
-   dotnet run --urls "http://localhost:5003"
-
-   # Terminal 2: Start the Web UI
-   cd src/Nupack.Server.Web
-   dotnet run --urls "http://localhost:5002"
-   ```
-
-### Code Style
-
-- Follow standard C# conventions
-- Use meaningful variable and method names
-- Add XML documentation for public APIs
-- Keep methods focused and small
-- Use async/await for I/O operations
-
-#### Code Formatting
-
-Before submitting a pull request, ensure your code is properly formatted:
+### Run the solution
 
 ```bash
-# Format C# code
-dotnet format
+dotnet restore
+dotnet build
 
-# Format CSS/JavaScript (if you have Node.js installed)
-cd src/Nupack.Server.Web
-npm run format
+dotnet run --project src/Nupack.Server.Api --urls "http://localhost:5003"
+dotnet run --project src/Nupack.Server.Web --urls "http://localhost:5004"
 ```
 
-### Testing
-
-- Write unit tests for new functionality
-- Ensure all tests pass before submitting PR
-- Aim for good test coverage
-- Use descriptive test names
+### Run tests
 
 ```bash
-# Run all tests
 dotnet test
-
-# Run tests with coverage
-dotnet test --collect:"XPlat Code Coverage"
 ```
 
-## Bug Reports
+The repository includes a root `NuGet.Config` so restore and test runs do not depend on your machine-wide feeds.
 
-We use GitHub issues to track public bugs. Report a bug by opening a new issue in the repository.
+## What We Value in Pull Requests
 
-**Great Bug Reports** tend to have:
+Strong pull requests usually do at least one of these:
+- make a supported endpoint more correct
+- remove drift between docs and code
+- improve contributor onboarding
+- add tests around a real protocol scenario
+- simplify a customization path
 
-- A quick summary and/or background
-- Steps to reproduce
-  - Be specific!
-  - Give sample code if you can
-- What you expected would happen
-- What actually happens
-- Notes (possibly including why you think this might be happening, or stuff you tried that didn't work)
+## Contribution Rules
 
-### Bug Report Template
+- Keep PRs focused. Small, composable changes are easier to review.
+- If behavior changes, update the docs in the same PR.
+- If a protocol-facing endpoint changes, add or update tests.
+- Do not market unsupported features as supported.
+- Prefer the separate Web app over the legacy demo UIs when documenting UI behavior.
 
-```markdown
-**Describe the bug**
-A clear and concise description of what the bug is.
+## Branch and Commit Guidance
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+Suggested branch names:
+- `docs/...`
+- `fix/...`
+- `test/...`
+- `refactor/...`
+- `feature/...`
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+Commit messages do not need a strict convention, but they should describe the change clearly.
 
-**Environment:**
- - OS: [e.g. Windows 11, Ubuntu 20.04]
- - .NET Version: [e.g. 8.0.1]
- - Browser: [e.g. Chrome 120, Firefox 121]
+## Scope Guidance
 
-**Additional context**
-Add any other context about the problem here.
-```
+Good issues for this repo:
+- V3 endpoint correctness
+- API documentation and examples
+- storage path handling
+- contributor experience
+- test coverage around restore/push/download/search flows
 
-## Feature Requests
+Usually out of scope unless discussed first:
+- enterprise feature sets
+- multi-tenant behavior
+- built-in auth productization
+- package extraction and embedding APIs
 
-We welcome feature requests! Please provide:
+## Reporting Bugs
 
-- **Use case**: Describe the problem you're trying to solve
-- **Proposed solution**: How you envision the feature working
-- **Alternatives considered**: Other approaches you've thought about
-- **Additional context**: Screenshots, mockups, etc.
+When opening a bug, include:
+- what you tried
+- expected behavior
+- actual behavior
+- environment details
+- reproduction steps or a failing sample package when possible
 
-## Security Issues
+## Security Reports
 
-Please do not report security vulnerabilities through public GitHub issues. Instead, please refer to our [Security Policy](SECURITY.md).
-
-## Code of Conduct
-
-This project and everyone participating in it is governed by our [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code.
-
-## License
-
-By contributing, you agree that your contributions will be licensed under the MIT License.
-
-## Questions?
-
-Feel free to open an issue with the `question` label, or reach out to the maintainers directly.
+Please do not report vulnerabilities in public issues. Use the process in [SECURITY.md](SECURITY.md).
 
 ## Recognition
 
-Contributors will be recognized in our README and release notes. Thank you for making Nupack Server better! 🎉
+Contributors are credited through release notes and repository history. Thanks for helping keep the project understandable and useful.
