@@ -21,43 +21,38 @@ public static class PackageStorageServiceCollectionExtensions
 
         services.AddSingleton<PackageArchiveMetadataReader>();
 
-        var provider = GetConfiguredProvider(configuration);
-        switch (provider)
+        services.AddSingleton<IAmazonS3>(serviceProvider =>
         {
-            case PackageStorageProvider.FileSystem:
-                services.AddSingleton<IPackageStorageService, FileSystemPackageStorageService>();
-                break;
-            case PackageStorageProvider.S3:
-                services.AddSingleton<IAmazonS3>(serviceProvider =>
-                {
-                    var options = serviceProvider.GetRequiredService<IOptions<PackageStorageOptions>>().Value.S3;
-                    var config = new AmazonS3Config
-                    {
-                        RegionEndpoint = RegionEndpoint.GetBySystemName(options.Region!),
-                        ForcePathStyle = options.ForcePathStyle
-                    };
+            var options = serviceProvider.GetRequiredService<IOptions<PackageStorageOptions>>().Value.S3;
+            var config = new AmazonS3Config
+            {
+                RegionEndpoint = RegionEndpoint.GetBySystemName(options.Region!),
+                ForcePathStyle = options.ForcePathStyle
+            };
 
-                    if (!string.IsNullOrWhiteSpace(options.ServiceUrl))
-                    {
-                        config.ServiceURL = options.ServiceUrl;
-                    }
+            if (!string.IsNullOrWhiteSpace(options.ServiceUrl))
+            {
+                config.ServiceURL = options.ServiceUrl;
+            }
 
-                    var credentials = new BasicAWSCredentials(options.AccessKey!, options.SecretKey!);
-                    return new AmazonS3Client(credentials, config);
-                });
-                services.AddSingleton<IPackageStorageService, S3PackageStorageService>();
-                break;
-            default:
-                throw new InvalidOperationException($"Unsupported PackageStorage provider '{provider}'.");
-        }
+            var credentials = new BasicAWSCredentials(options.AccessKey!, options.SecretKey!);
+            return new AmazonS3Client(credentials, config);
+        });
+
+        services.AddSingleton<FileSystemPackageStorageService>();
+        services.AddSingleton<S3PackageStorageService>();
+        services.AddSingleton<IPackageStorageService>(serviceProvider =>
+        {
+            var options = serviceProvider.GetRequiredService<IOptions<PackageStorageOptions>>().Value;
+            return options.GetSelectedProvider() switch
+            {
+                PackageStorageProvider.FileSystem => serviceProvider.GetRequiredService<FileSystemPackageStorageService>(),
+                PackageStorageProvider.S3 => serviceProvider.GetRequiredService<S3PackageStorageService>(),
+                _ => throw new InvalidOperationException($"Unsupported PackageStorage provider '{options.GetSelectedProvider()}'.")
+            };
+        });
 
         services.AddHostedService<PackageStorageWarmupHostedService>();
         return services;
-    }
-
-    private static PackageStorageProvider GetConfiguredProvider(IConfiguration configuration)
-    {
-        var options = configuration.GetSection(PackageStorageOptions.SectionName).Get<PackageStorageOptions>() ?? new PackageStorageOptions();
-        return options.GetSelectedProvider();
     }
 }

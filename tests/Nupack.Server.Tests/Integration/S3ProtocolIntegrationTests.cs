@@ -5,10 +5,12 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Nupack.Server.Api.Models.V3;
 using Nupack.Server.Api.Services;
 using Nupack.Server.Tests.Storage;
+using Nupack.Server.Storage.Services;
 using Xunit;
 
 namespace Nupack.Server.Tests.Integration;
@@ -154,7 +156,13 @@ public class S3ProtocolIntegrationTests
                     });
                 });
 
-            return new S3TestServerContext(true, samplePackagePath, factory.CreateClient(), factory, environment, client, bucketName);
+            var httpClient = factory.CreateClient();
+            if (seedPackage)
+            {
+                await WaitForSeededPackageAsync(factory.Services, "TestPackage", "1.0.0");
+            }
+
+            return new S3TestServerContext(true, samplePackagePath, httpClient, factory, environment, client, bucketName);
         }
 
         public void Dispose()
@@ -167,6 +175,24 @@ public class S3ProtocolIntegrationTests
                 _environment.DeleteBucketRecursiveAsync(_client, _bucketName).GetAwaiter().GetResult();
                 _client.Dispose();
             }
+        }
+
+        private static async Task WaitForSeededPackageAsync(IServiceProvider services, string packageId, string version)
+        {
+            var timeoutAt = DateTime.UtcNow.AddSeconds(10);
+            while (DateTime.UtcNow < timeoutAt)
+            {
+                using var scope = services.CreateScope();
+                var storage = scope.ServiceProvider.GetRequiredService<IPackageStorageService>();
+                if (await storage.GetPackageAsync(packageId, version) is not null)
+                {
+                    return;
+                }
+
+                await Task.Delay(250);
+            }
+
+            throw new TimeoutException($"Seeded package {packageId} {version} was not visible through IPackageStorageService after host startup.");
         }
     }
 }
