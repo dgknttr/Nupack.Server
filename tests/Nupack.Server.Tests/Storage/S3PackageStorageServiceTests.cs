@@ -28,7 +28,9 @@ public class S3PackageStorageServiceTests
         {
             var storage = new S3PackageStorageService(client, Options.Create(environment.CreateOptions(bucketName)), new PackageArchiveMetadataReader(), NullLogger<S3PackageStorageService>.Instance);
             var packagePath = TestPackageLocator.ResolveSamplePackagePath();
-            await storage.StorePackageAsync(new PackageUploadContent(Path.GetFileName(packagePath), new FileInfo(packagePath).Length, () => File.OpenRead(packagePath)));
+            var storedPackage = await storage.StorePackageAsync(new PackageUploadContent(Path.GetFileName(packagePath), new FileInfo(packagePath).Length, () => File.OpenRead(packagePath)));
+            var objectKey = S3PackageObjectKey.Build(environment.Prefix ?? string.Empty, storedPackage.Id, storedPackage.Version);
+            await environment.WaitForObjectVisibilityAsync(client, bucketName, objectKey);
 
             var rehydrated = new S3PackageStorageService(client, Options.Create(environment.CreateOptions(bucketName)), new PackageArchiveMetadataReader(), NullLogger<S3PackageStorageService>.Instance);
             var count = await rehydrated.GetTotalPackageCountAsync();
@@ -45,4 +47,3 @@ public class S3PackageStorageServiceTests
         }
     }
 }
-

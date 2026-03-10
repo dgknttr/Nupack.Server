@@ -35,6 +35,9 @@ internal static class TestPackageLocator
 
 internal sealed class S3TestEnvironment
 {
+    private static readonly TimeSpan DefaultObjectVisibilityTimeout = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan ObjectVisibilityPollingInterval = TimeSpan.FromMilliseconds(250);
+
     private S3TestEnvironment(string serviceUrl, string region, string accessKey, string secretKey, bool forcePathStyle, string? prefix)
     {
         ServiceUrl = serviceUrl;
@@ -117,6 +120,30 @@ internal sealed class S3TestEnvironment
             BucketName = bucketName,
             UseClientRegion = true
         });
+    }
+
+    public async Task WaitForObjectVisibilityAsync(IAmazonS3 client, string bucketName, string objectKey, TimeSpan? timeout = null)
+    {
+        var deadline = DateTime.UtcNow + (timeout ?? DefaultObjectVisibilityTimeout);
+
+        while (DateTime.UtcNow < deadline)
+        {
+            var response = await client.ListObjectsV2Async(new ListObjectsV2Request
+            {
+                BucketName = bucketName,
+                Prefix = objectKey,
+                MaxKeys = 1
+            });
+
+            if (response.S3Objects?.Any(item => string.Equals(item.Key, objectKey, StringComparison.Ordinal)) == true)
+            {
+                return;
+            }
+
+            await Task.Delay(ObjectVisibilityPollingInterval);
+        }
+
+        throw new TimeoutException($"Object '{objectKey}' did not become visible in bucket '{bucketName}' within the allotted time.");
     }
 
     public async Task DeleteBucketRecursiveAsync(IAmazonS3 client, string bucketName)

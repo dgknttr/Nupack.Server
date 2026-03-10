@@ -14,7 +14,6 @@ public static class S3PackageObjectKey
         return $"{basePath}{idLower}/{versionLower}/{idLower}.{versionLower}.nupkg";
     }
 
-    public static bool IsPackageObject(string key)
-        => key.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase);
+    public static bool IsPackageObject(string? key)
+        => !string.IsNullOrWhiteSpace(key) && key.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase);
 }
-

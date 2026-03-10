@@ -129,6 +129,8 @@ public class S3ProtocolIntegrationTests
                     AutoCloseStream = false,
                     ContentType = "application/octet-stream"
                 });
+
+                await environment.WaitForObjectVisibilityAsync(client, bucketName, key);
             }
 
             var factory = new WebApplicationFactory<Program>()

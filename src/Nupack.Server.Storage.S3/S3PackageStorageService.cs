@@ -161,14 +161,24 @@ public sealed class S3PackageStorageService : IPackageStorageService
                     ContinuationToken = continuationToken
                 });
 
-                foreach (var s3Object in response.S3Objects.Where(s3Object => S3PackageObjectKey.IsPackageObject(s3Object.Key)))
+                var packageObjects = response.S3Objects?
+                    .Where(s3Object => S3PackageObjectKey.IsPackageObject(s3Object.Key))
+                    .ToList() ?? new List<S3Object>();
+
+                foreach (var s3Object in packageObjects)
                 {
+                    var objectKey = s3Object.Key;
+                    if (string.IsNullOrWhiteSpace(objectKey))
+                    {
+                        continue;
+                    }
+
                     try
                     {
-                        using var objectResponse = await _s3Client.GetObjectAsync(_bucketName, s3Object.Key);
+                        using var objectResponse = await _s3Client.GetObjectAsync(_bucketName, objectKey);
                         var metadata = await _metadataReader.ReadMetadataAsync(
                             objectResponse.ResponseStream,
-                            Path.GetFileName(s3Object.Key),
+                            Path.GetFileName(objectKey),
                             s3Object.Size ?? 0L,
                             (s3Object.LastModified ?? DateTime.UtcNow).ToUniversalTime());
 
@@ -176,7 +186,7 @@ public sealed class S3PackageStorageService : IPackageStorageService
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "Failed to load package metadata from S3 object {ObjectKey}", s3Object.Key);
+                        _logger.LogWarning(ex, "Failed to load package metadata from S3 object {ObjectKey}", objectKey);
                     }
                 }
 
@@ -200,7 +210,3 @@ public sealed class S3PackageStorageService : IPackageStorageService
     private static string BuildPackageKey(string id, string version)
         => $"{id}:{version}";
 }
-
-
-
-
