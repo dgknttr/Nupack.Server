@@ -29,9 +29,10 @@ public class S3ProtocolIntegrationTests
             return;
         }
 
-        var versionsResponse = await server.Client.GetAsync("/v3-flatcontainer/testpackage/index.json");
-        var searchResponse = await server.Client.GetAsync("/v3/search?q=TestPackage&take=5");
-        var registrationResponse = await server.Client.GetAsync("/v3/registrations/testpackage/index.json");
+        var client = server.Client!;
+        var versionsResponse = await client.GetAsync("/v3-flatcontainer/testpackage/index.json");
+        var searchResponse = await client.GetAsync("/v3/search?q=TestPackage&take=5");
+        var registrationResponse = await client.GetAsync("/v3/registrations/testpackage/index.json");
 
         versionsResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         searchResponse.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -50,16 +51,17 @@ public class S3ProtocolIntegrationTests
             return;
         }
 
-        server.Client.DefaultRequestHeaders.Add(HeaderApiKeyPackageEndpointAuthorizer.ApiKeyHeaderName, "secret-key");
+        var client = server.Client!;
+        client.DefaultRequestHeaders.Add(HeaderApiKeyPackageEndpointAuthorizer.ApiKeyHeaderName, "secret-key");
         using var content = await CreatePackageUploadContentAsync(server.SamplePackagePath);
 
-        var uploadResponse = await server.Client.PutAsync("/v3/push", content);
+        var uploadResponse = await client.PutAsync("/v3/push", content);
         uploadResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
-        var versionsAfterUpload = await server.Client.GetAsync("/v3-flatcontainer/testpackage/index.json");
+        var versionsAfterUpload = await client.GetAsync("/v3-flatcontainer/testpackage/index.json");
         versionsAfterUpload.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var deleteResponse = await server.Client.DeleteAsync("/v3/delete/TestPackage/1.0.0");
+        var deleteResponse = await client.DeleteAsync("/v3/delete/TestPackage/1.0.0");
         deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
@@ -166,6 +168,3 @@ public class S3ProtocolIntegrationTests
         }
     }
 }
-
-
-

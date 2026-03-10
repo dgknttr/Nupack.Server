@@ -107,7 +107,7 @@ internal sealed class S3TestEnvironment
     public async Task EnsureBucketExistsAsync(IAmazonS3 client, string bucketName)
     {
         var existingBuckets = await client.ListBucketsAsync();
-        if (existingBuckets.Buckets.Any(bucket => string.Equals(bucket.BucketName, bucketName, StringComparison.Ordinal)))
+        if (existingBuckets.Buckets?.Any(bucket => string.Equals(bucket.BucketName, bucketName, StringComparison.Ordinal)) == true)
         {
             return;
         }
@@ -130,7 +130,7 @@ internal sealed class S3TestEnvironment
                 ContinuationToken = continuationToken
             });
 
-            if (response.S3Objects.Count > 0)
+            if (response.S3Objects?.Count > 0)
             {
                 await client.DeleteObjectsAsync(new DeleteObjectsRequest
                 {
