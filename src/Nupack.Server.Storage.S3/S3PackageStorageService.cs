@@ -10,6 +10,9 @@ namespace Nupack.Server.Storage.S3;
 
 public sealed class S3PackageStorageService : IPackageStorageService
 {
+    private const int CacheWarmupMaxAttempts = 5;
+    private static readonly TimeSpan CacheWarmupRetryDelay = TimeSpan.FromMilliseconds(200);
+
     private readonly IAmazonS3 _s3Client;
     private readonly PackageArchiveMetadataReader _metadataReader;
     private readonly ILogger<S3PackageStorageService> _logger;
@@ -175,13 +178,7 @@ public sealed class S3PackageStorageService : IPackageStorageService
 
                     try
                     {
-                        using var objectResponse = await _s3Client.GetObjectAsync(_bucketName, objectKey);
-                        var metadata = await _metadataReader.ReadMetadataAsync(
-                            objectResponse.ResponseStream,
-                            Path.GetFileName(objectKey),
-                            s3Object.Size ?? 0L,
-                            (s3Object.LastModified ?? DateTime.UtcNow).ToUniversalTime());
-
+                        var metadata = await LoadMetadataAsync(objectKey, s3Object);
                         _packageCache[BuildPackageKey(metadata.Id, metadata.Version)] = metadata;
                     }
                     catch (Exception ex)
@@ -200,6 +197,27 @@ public sealed class S3PackageStorageService : IPackageStorageService
         {
             _logger.LogError(ex, "Failed to initialize S3 package storage cache.");
             throw;
+        }
+    }
+
+    private async Task<PackageMetadata> LoadMetadataAsync(string objectKey, S3Object s3Object)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                using var objectResponse = await _s3Client.GetObjectAsync(_bucketName, objectKey);
+                return await _metadataReader.ReadMetadataAsync(
+                    objectResponse.ResponseStream,
+                    Path.GetFileName(objectKey),
+                    s3Object.Size ?? 0L,
+                    (s3Object.LastModified ?? DateTime.UtcNow).ToUniversalTime());
+            }
+            catch (AmazonS3Exception ex) when (IsNotFound(ex) && attempt < CacheWarmupMaxAttempts)
+            {
+                _logger.LogDebug(ex, "S3 object {ObjectKey} was listed but not yet readable during cache warmup. Retrying attempt {Attempt} of {MaxAttempts}.", objectKey, attempt + 1, CacheWarmupMaxAttempts);
+                await Task.Delay(CacheWarmupRetryDelay);
+            }
         }
     }
 

@@ -128,22 +128,23 @@ internal sealed class S3TestEnvironment
 
         while (DateTime.UtcNow < deadline)
         {
-            var response = await client.ListObjectsV2Async(new ListObjectsV2Request
+            try
             {
-                BucketName = bucketName,
-                Prefix = objectKey,
-                MaxKeys = 1
-            });
+                await client.GetObjectMetadataAsync(new GetObjectMetadataRequest
+                {
+                    BucketName = bucketName,
+                    Key = objectKey
+                });
 
-            if (response.S3Objects?.Any(item => string.Equals(item.Key, objectKey, StringComparison.Ordinal)) == true)
-            {
                 return;
             }
-
-            await Task.Delay(ObjectVisibilityPollingInterval);
+            catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound || string.Equals(ex.ErrorCode, "NoSuchKey", StringComparison.OrdinalIgnoreCase))
+            {
+                await Task.Delay(ObjectVisibilityPollingInterval);
+            }
         }
 
-        throw new TimeoutException($"Object '{objectKey}' did not become visible in bucket '{bucketName}' within the allotted time.");
+        throw new TimeoutException($"Object '{objectKey}' did not become readable in bucket '{bucketName}' within the allotted time.");
     }
 
     public async Task DeleteBucketRecursiveAsync(IAmazonS3 client, string bucketName)
