@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Options;
 using Nupack.Server.Api.Models;
 
@@ -9,12 +10,15 @@ public sealed class HeaderApiKeyPackageEndpointAuthorizer : IPackageEndpointAuth
 {
     public const string ApiKeyHeaderName = "X-NuGet-ApiKey";
     public const string InvalidApiKeyMessage = "A valid X-NuGet-ApiKey header is required for package write operations.";
+    public const string AnonymousWritesDisabledMessage = "Package write operations require PackageSecurity:WriteApiKey outside Development unless PackageSecurity:AllowAnonymousWrites is enabled.";
 
     private readonly PackageSecurityOptions _options;
+    private readonly IWebHostEnvironment _environment;
 
-    public HeaderApiKeyPackageEndpointAuthorizer(IOptions<PackageSecurityOptions> options)
+    public HeaderApiKeyPackageEndpointAuthorizer(IOptions<PackageSecurityOptions> options, IWebHostEnvironment environment)
     {
         _options = options.Value;
+        _environment = environment;
     }
 
     public Task<PackageAuthorizationResult> AuthorizeUploadAsync(HttpContext httpContext, IFormFile packageFile, CancellationToken cancellationToken = default)
@@ -28,7 +32,9 @@ public sealed class HeaderApiKeyPackageEndpointAuthorizer : IPackageEndpointAuth
         var configuredKey = _options.WriteApiKey?.Trim();
         if (string.IsNullOrWhiteSpace(configuredKey))
         {
-            return PackageAuthorizationResult.Allow();
+            return _environment.IsDevelopment() || _options.AllowAnonymousWrites
+                ? PackageAuthorizationResult.Allow()
+                : DenyAnonymousWritesDisabled();
         }
 
         if (!headers.TryGetValue(ApiKeyHeaderName, out var headerValues) || headerValues.Count != 1)
@@ -49,6 +55,9 @@ public sealed class HeaderApiKeyPackageEndpointAuthorizer : IPackageEndpointAuth
 
     private static PackageAuthorizationResult Deny()
         => PackageAuthorizationResult.Deny(StatusCodes.Status401Unauthorized, InvalidApiKeyMessage);
+
+    private static PackageAuthorizationResult DenyAnonymousWritesDisabled()
+        => PackageAuthorizationResult.Deny(StatusCodes.Status401Unauthorized, AnonymousWritesDisabledMessage);
 
     private static bool FixedTimeEquals(string providedKey, string configuredKey)
     {

@@ -7,7 +7,9 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
+using Nupack.Server.Storage;
 using WebPages = NupackWeb::Nupack.Server.Web.Pages;
 using Xunit;
 
@@ -62,7 +64,27 @@ public class UploadModelTests
         headerValues.Should().ContainSingle().Which.Should().Be("secret-key");
     }
 
-    private static WebPages.UploadModel CreateModel(HttpClient httpClient)
+    [Fact]
+    public async Task OnPostAsync_WithPackageAboveConfiguredLimit_ReturnsValidationMessageWithoutCallingApi()
+    {
+        var requestSent = false;
+        var httpClient = new HttpClient(new StubHttpMessageHandler(_ =>
+        {
+            requestSent = true;
+            return new HttpResponseMessage(HttpStatusCode.Created);
+        }));
+
+        var model = CreateModel(httpClient, maxPackageSizeBytes: 2);
+        model.PackageFile = CreatePackageFile(length: 3);
+
+        await model.OnPostAsync();
+
+        model.IsSuccess.Should().BeFalse();
+        model.Message.Should().Be("Package file size cannot exceed 2 bytes.");
+        requestSent.Should().BeFalse();
+    }
+
+    private static WebPages.UploadModel CreateModel(HttpClient httpClient, long maxPackageSizeBytes = PackageUploadOptions.DefaultMaxPackageSizeBytes)
     {
         var logger = Mock.Of<ILogger<WebPages.UploadModel>>();
         var configuration = new ConfigurationBuilder()
@@ -75,12 +97,15 @@ public class UploadModelTests
         var httpClientFactory = new Mock<IHttpClientFactory>();
         httpClientFactory.Setup(x => x.CreateClient(It.IsAny<string>())).Returns(httpClient);
 
-        return new WebPages.UploadModel(logger, configuration, httpClientFactory.Object);
+        return new WebPages.UploadModel(logger, configuration, httpClientFactory.Object, Options.Create(new PackageUploadOptions
+        {
+            MaxPackageSizeBytes = maxPackageSizeBytes
+        }));
     }
 
-    private static IFormFile CreatePackageFile()
+    private static IFormFile CreatePackageFile(long length = 3)
     {
-        return new FormFile(new MemoryStream(new byte[] { 1, 2, 3 }), 0, 3, "package", "TestPackage.1.0.0.nupkg");
+        return new FormFile(new MemoryStream(new byte[length]), 0, length, "package", "TestPackage.1.0.0.nupkg");
     }
 
     private sealed class StubHttpMessageHandler : HttpMessageHandler

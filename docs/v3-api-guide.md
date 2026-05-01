@@ -72,7 +72,7 @@ GET /v3/registrations/{id}/{version}.json
 PUT /v3/push
 ```
 
-If `PackageSecurity:WriteApiKey` is configured, send `X-NuGet-ApiKey`.
+Outside `Development`, configure `PackageSecurity:WriteApiKey` and send `X-NuGet-ApiKey`, or explicitly opt in to anonymous writes with `PackageSecurity:AllowAnonymousWrites=true`.
 
 ### Delete
 
@@ -80,7 +80,7 @@ If `PackageSecurity:WriteApiKey` is configured, send `X-NuGet-ApiKey`.
 DELETE /v3/delete/{id}/{version}
 ```
 
-If `PackageSecurity:WriteApiKey` is configured, send `X-NuGet-ApiKey`.
+Outside `Development`, configure `PackageSecurity:WriteApiKey` and send `X-NuGet-ApiKey`, or explicitly opt in to anonymous writes with `PackageSecurity:AllowAnonymousWrites=true`.
 
 ### Health
 
@@ -110,6 +110,6 @@ GET /health
 
 - The separate Web app is the official UI.
 - `/ui` and `/frontend` in the API host are legacy demos.
-- Built-in auth is intentionally minimal: an optional shared `X-NuGet-ApiKey` for `push` and `delete` only.
+- Built-in auth is intentionally minimal: a shared `X-NuGet-ApiKey` for `push` and `delete`; blank write auth is open by default only in `Development`.
 - Rate limiting and advanced admin workflows are not built in.
 - Swagger is available at `/swagger` for the current live surface.

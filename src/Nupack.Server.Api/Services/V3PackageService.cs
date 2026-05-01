@@ -376,7 +376,7 @@ public class V3PackageService : IV3PackageService
                 Tags = ParseTags(package.Tags),
                 Title = package.Title,
                 Version = package.Version,
-                DependencyGroups = ParseDependencies(package.Dependencies)
+                DependencyGroups = ConvertDependencyGroups(package.DependencyGroups, baseUrl)
             }
         };
     }
@@ -403,31 +403,30 @@ public class V3PackageService : IV3PackageService
                      .ToList();
     }
 
-    private static List<DependencyGroup> ParseDependencies(string? dependencies)
+    private static List<DependencyGroup> ConvertDependencyGroups(IReadOnlyList<PackageDependencyGroupMetadata> dependencyGroups, string baseUrl)
     {
-        if (string.IsNullOrWhiteSpace(dependencies))
+        if (dependencyGroups.Count == 0)
             return new List<DependencyGroup>();
 
-        var deps = dependencies.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                              .Select(d => d.Trim())
-                              .Where(d => !string.IsNullOrEmpty(d))
-                              .Select(d => new Dependency
-                              {
-                                  Id = $"https://api.nuget.org/v3/registrations2/{d.ToLowerInvariant()}/index.json",
-                                  PackageId = d,
-                                  Range = "[1.0.0, )",
-                                  Registration = $"https://api.nuget.org/v3/registrations2/{d.ToLowerInvariant()}/index.json"
-                              })
-                              .ToList();
-
-        return new List<DependencyGroup>
-        {
-            new()
+        return dependencyGroups
+            .Select(group => new DependencyGroup
             {
-                Dependencies = deps,
-                TargetFramework = ".NETStandard2.0"
-            }
-        };
+                Dependencies = group.Dependencies
+                    .Select(dependency =>
+                    {
+                        var registrationUrl = $"{baseUrl}/v3/registrations/{dependency.Id.ToLowerInvariant()}/index.json";
+                        return new Dependency
+                        {
+                            Id = registrationUrl,
+                            PackageId = dependency.Id,
+                            Range = dependency.VersionRange ?? string.Empty,
+                            Registration = registrationUrl
+                        };
+                    })
+                    .ToList(),
+                TargetFramework = group.TargetFramework
+            })
+            .ToList();
     }
 
     private class NuGetVersionComparer : IComparer<string>

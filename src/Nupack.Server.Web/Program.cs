@@ -1,5 +1,9 @@
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.Extensions.Options;
 using Nupack.Server.Web.Services;
 using Nupack.Server.Web.Models;
+using Nupack.Server.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,6 +13,21 @@ builder.Services.AddRazorPages();
 // Register branding configuration
 builder.Services.Configure<BrandingOptions>(
     builder.Configuration.GetSection(BrandingOptions.SectionName));
+
+builder.Services.Configure<PackageUploadOptions>(
+    builder.Configuration.GetSection(PackageUploadOptions.SectionName));
+
+builder.Services.AddOptions<FormOptions>()
+    .Configure<IOptions<PackageUploadOptions>>((formOptions, uploadOptions) =>
+    {
+        formOptions.MultipartBodyLengthLimit = uploadOptions.Value.GetResolvedMaxPackageSizeBytes();
+    });
+
+builder.Services.AddOptions<KestrelServerOptions>()
+    .Configure<IOptions<PackageUploadOptions>>((kestrelOptions, uploadOptions) =>
+    {
+        kestrelOptions.Limits.MaxRequestBodySize = uploadOptions.Value.GetRequestBodySizeLimitBytes();
+    });
 
 // Register HttpClient for NuGet API calls
 builder.Services.AddHttpClient("NupackUploadClient", client =>
@@ -46,5 +65,3 @@ app.MapRazorPages();
 app.Run();
 
 public partial class Program { }
-
-

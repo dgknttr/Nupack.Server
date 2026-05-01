@@ -14,4 +14,8 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.3" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Nupack.Server.Storage\Nupack.Server.Storage.csproj" />
+  </ItemGroup>
+
 </Project>

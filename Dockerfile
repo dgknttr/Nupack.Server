@@ -8,6 +8,9 @@ WORKDIR /src
 # Copy project files first for better layer caching
 COPY ["src/Nupack.Server.Api/Nupack.Server.Api.csproj", "src/Nupack.Server.Api/"]
 COPY ["src/Nupack.Server.Web/Nupack.Server.Web.csproj", "src/Nupack.Server.Web/"]
+COPY ["src/Nupack.Server.Storage/Nupack.Server.Storage.csproj", "src/Nupack.Server.Storage/"]
+COPY ["src/Nupack.Server.Storage.FileSystem/Nupack.Server.Storage.FileSystem.csproj", "src/Nupack.Server.Storage.FileSystem/"]
+COPY ["src/Nupack.Server.Storage.S3/Nupack.Server.Storage.S3.csproj", "src/Nupack.Server.Storage.S3/"]
 
 # Restore dependencies for both projects
 RUN dotnet restore "src/Nupack.Server.Api/Nupack.Server.Api.csproj"

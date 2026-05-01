@@ -20,7 +20,7 @@ dotnet nuget list source
 dotnet nuget push path/to/YourPackage.1.0.0.nupkg --source "Nupack Server"
 ```
 
-If your deployment enables the optional shared write key:
+`Development` allows blank write auth by default for local reference use. Outside `Development`, configure `PackageSecurity:WriteApiKey` and pass it with `--api-key`, or explicitly set `PackageSecurity:AllowAnonymousWrites=true`.
 
 ```bash
 dotnet nuget push path/to/YourPackage.1.0.0.nupkg --source "Nupack Server" --api-key "your-write-key"
@@ -128,7 +128,7 @@ curl http://localhost:5003/v3/registrations/testpackage/index.json
 curl -X DELETE http://localhost:5003/v3/delete/TestPackage/1.0.0
 ```
 
-If your deployment enables the optional shared write key:
+`Development` allows blank write auth by default for local reference use. Outside `Development`, configure `PackageSecurity:WriteApiKey` and send it with `X-NuGet-ApiKey`, or explicitly set `PackageSecurity:AllowAnonymousWrites=true`.
 
 ```bash
 curl -X DELETE http://localhost:5003/v3/delete/TestPackage/1.0.0 -H "X-NuGet-ApiKey: your-write-key"
@@ -136,7 +136,7 @@ curl -X DELETE http://localhost:5003/v3/delete/TestPackage/1.0.0 -H "X-NuGet-Api
 
 ## Notes
 
-- built-in auth is intentionally minimal: an optional shared write key for `push` and `delete` only
+- built-in auth is intentionally minimal: blank write auth is open by default only in `Development`; outside `Development`, `push` and `delete` require `PackageSecurity:WriteApiKey` or explicit `PackageSecurity:AllowAnonymousWrites=true`
 - storage providers in the repo today are `FileSystem` and `S3`
 - download statistics and unlisting are not supported yet
 - the separate Web app is the official UI; the API `/ui` and `/frontend` routes are legacy demos

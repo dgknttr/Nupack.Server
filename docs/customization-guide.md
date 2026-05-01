@@ -41,7 +41,8 @@ It runs before:
 The built-in default is `HeaderApiKeyPackageEndpointAuthorizer`.
 
 Behavior of the built-in default:
-- if `PackageSecurity:WriteApiKey` is empty, write auth stays disabled
+- if `PackageSecurity:WriteApiKey` is empty in `Development`, write auth stays disabled for local reference use
+- if `PackageSecurity:WriteApiKey` is empty outside `Development`, write requests are denied unless `PackageSecurity:AllowAnonymousWrites` is `true`
 - if `PackageSecurity:WriteApiKey` is set, write requests must send `X-NuGet-ApiKey`
 - read endpoints remain anonymous either way
 

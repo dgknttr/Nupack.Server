@@ -10,7 +10,8 @@ Security fixes are applied to the latest `0.x` release line in this repository. 
 
 What the repository does today:
 - validates uploaded files as `.nupkg`
-- supports an optional shared `X-NuGet-ApiKey` for `push` and `delete` when `PackageSecurity:WriteApiKey` is configured
+- supports a shared `X-NuGet-ApiKey` for `push` and `delete` when `PackageSecurity:WriteApiKey` is configured
+- allows anonymous writes by default only in `Development`; outside `Development`, blank write auth fails closed unless `PackageSecurity:AllowAnonymousWrites` is explicitly enabled
 - limits upload size in the Web UI
 - avoids exposing detailed server errors in normal API responses
 - ships container and CI security scanning workflows

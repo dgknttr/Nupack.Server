@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Options;
+using Nupack.Server.Storage;
 using System.ComponentModel.DataAnnotations;
 using System.Net;
 using System.Net.Http.Json;
@@ -14,12 +16,14 @@ public class UploadModel : PageModel
     private readonly ILogger<UploadModel> _logger;
     private readonly IConfiguration _configuration;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly PackageUploadOptions _uploadOptions;
 
-    public UploadModel(ILogger<UploadModel> logger, IConfiguration configuration, IHttpClientFactory httpClientFactory)
+    public UploadModel(ILogger<UploadModel> logger, IConfiguration configuration, IHttpClientFactory httpClientFactory, IOptions<PackageUploadOptions> uploadOptions)
     {
         _logger = logger;
         _configuration = configuration;
         _httpClientFactory = httpClientFactory;
+        _uploadOptions = uploadOptions.Value;
     }
 
     [BindProperty]
@@ -31,6 +35,7 @@ public class UploadModel : PageModel
 
     public string? Message { get; set; }
     public bool IsSuccess { get; set; }
+    public string MaxPackageSizeDisplay => _uploadOptions.GetMaxPackageSizeDisplay();
 
     public void OnGet()
     {
@@ -58,9 +63,9 @@ public class UploadModel : PageModel
             return Page();
         }
 
-        if (PackageFile.Length > 100 * 1024 * 1024)
+        if (PackageFile.Length > _uploadOptions.GetResolvedMaxPackageSizeBytes())
         {
-            Message = "Package file size cannot exceed 100MB.";
+            Message = $"Package file size cannot exceed {MaxPackageSizeDisplay}.";
             IsSuccess = false;
             return Page();
         }
@@ -137,4 +142,3 @@ public class UploadModel : PageModel
         return $"Upload failed: {response.StatusCode} - {errorContent}";
     }
 }
-

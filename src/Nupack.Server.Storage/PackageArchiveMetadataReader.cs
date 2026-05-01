@@ -1,4 +1,5 @@
 using NuGet.Packaging;
+using NuGet.Packaging.Core;
 using Nupack.Server.Storage.Models;
 
 namespace Nupack.Server.Storage.Services;
@@ -25,6 +26,7 @@ public sealed class PackageArchiveMetadataReader
         var manifest = Manifest.ReadFrom(nuspecStream, validateSchema: false);
         var metadata = manifest.Metadata;
         var version = metadata.Version.ToString();
+        var dependencyGroups = BuildDependencyGroups(metadata.DependencyGroups);
 
         return new PackageMetadata(
             Id: metadata.Id,
@@ -42,14 +44,17 @@ public sealed class PackageArchiveMetadataReader
             ProjectUrl: metadata.ProjectUrl?.ToString(),
             LicenseUrl: metadata.LicenseUrl?.ToString(),
             RequireLicenseAcceptance: metadata.RequireLicenseAcceptance.ToString().ToLowerInvariant(),
-            Dependencies: BuildDependencyList(metadata.DependencyGroups),
+            Dependencies: BuildDependencyList(dependencyGroups),
             Created: timestampUtc,
             Published: timestampUtc,
             Size: size,
             FileName: fileName,
             IsPrerelease: version.Contains('-', StringComparison.Ordinal),
             IsLatestVersion: false,
-            IsAbsoluteLatestVersion: false);
+            IsAbsoluteLatestVersion: false)
+        {
+            DependencyGroups = dependencyGroups
+        };
     }
 
     private static async Task<Stream> EnsureSeekableStreamAsync(Stream sourceStream, CancellationToken cancellationToken)
@@ -66,19 +71,38 @@ public sealed class PackageArchiveMetadataReader
         return bufferedStream;
     }
 
-    private static string BuildDependencyList(IEnumerable<PackageDependencyGroup>? dependencyGroups)
+    private static IReadOnlyList<PackageDependencyGroupMetadata> BuildDependencyGroups(IEnumerable<PackageDependencyGroup>? dependencyGroups)
     {
         if (dependencyGroups?.Any() != true)
         {
-            return string.Empty;
+            return Array.Empty<PackageDependencyGroupMetadata>();
         }
 
+        return dependencyGroups
+            .Select(group => new PackageDependencyGroupMetadata(
+                TargetFramework: GetTargetFramework(group),
+                Dependencies: group.Packages
+                    .Select(package => new PackageDependencyMetadata(
+                        package.Id,
+                        package.VersionRange?.ToString()))
+                    .ToList()))
+            .ToList();
+    }
+
+    private static string BuildDependencyList(IEnumerable<PackageDependencyGroupMetadata> dependencyGroups)
+    {
         var dependencyIds = dependencyGroups
-            .SelectMany(group => group.Packages?.Select(package => package.Id) ?? Enumerable.Empty<string>())
+            .SelectMany(group => group.Dependencies.Select(package => package.Id))
             .Distinct(StringComparer.OrdinalIgnoreCase);
 
         return string.Join(", ", dependencyIds);
     }
+
+    private static string? GetTargetFramework(PackageDependencyGroup group)
+    {
+        var targetFramework = group.TargetFramework?.GetShortFolderName();
+        return string.IsNullOrWhiteSpace(targetFramework) || string.Equals(targetFramework, "any", StringComparison.OrdinalIgnoreCase)
+            ? null
+            : targetFramework;
+    }
 }
-
-

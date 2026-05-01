@@ -128,7 +128,7 @@ paths:
           required: false
           schema:
             type: string
-          description: Required only when PackageSecurity:WriteApiKey is configured.
+          description: Required outside Development unless PackageSecurity:AllowAnonymousWrites is enabled. Must match PackageSecurity:WriteApiKey when configured.
       responses:
         '201':
           description: Package uploaded successfully
@@ -145,7 +145,7 @@ paths:
           required: false
           schema:
             type: string
-          description: Required only when PackageSecurity:WriteApiKey is configured.
+          description: Required outside Development unless PackageSecurity:AllowAnonymousWrites is enabled. Must match PackageSecurity:WriteApiKey when configured.
       responses:
         '204':
           description: Package deleted successfully

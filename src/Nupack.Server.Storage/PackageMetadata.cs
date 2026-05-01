@@ -24,4 +24,18 @@ public record PackageMetadata(
     bool IsPrerelease,
     bool IsLatestVersion,
     bool IsAbsoluteLatestVersion
+)
+{
+    public IReadOnlyList<PackageDependencyGroupMetadata> DependencyGroups { get; init; } =
+        Array.Empty<PackageDependencyGroupMetadata>();
+}
+
+public record PackageDependencyGroupMetadata(
+    string? TargetFramework,
+    IReadOnlyList<PackageDependencyMetadata> Dependencies
+);
+
+public record PackageDependencyMetadata(
+    string Id,
+    string? VersionRange
 );

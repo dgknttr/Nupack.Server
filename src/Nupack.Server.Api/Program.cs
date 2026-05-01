@@ -2,7 +2,9 @@ using Nupack.Server.Api.Models;
 using Nupack.Server.Api.Models.V3;
 using Nupack.Server.Api.Extensions;
 using Nupack.Server.Api.Services;
+using Nupack.Server.Storage;
 using Nupack.Server.Storage.Models;
+using Microsoft.AspNetCore.Http.Features;
 using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -30,7 +32,8 @@ A lightweight NuGet V3 server reference implementation built with .NET 9.
 - Supported: `/health`
 
 ## Notes
-- Optional shared `X-NuGet-ApiKey` auth can protect write endpoints when `PackageSecurity:WriteApiKey` is configured
+- Shared `X-NuGet-ApiKey` auth protects write endpoints when `PackageSecurity:WriteApiKey` is configured
+- Blank write auth is allowed by default only in Development; non-Development deployments must configure a key or opt in with `PackageSecurity:AllowAnonymousWrites`
 - Rate limiting is not built in yet
 - API-hosted `/ui` and `/frontend` routes are legacy demo surfaces
 - Use `/swagger` and the repository docs for the current support matrix
@@ -64,6 +67,23 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 
 // Configure package storage and security options
+var packageUploadOptions = builder.Configuration
+    .GetSection(PackageUploadOptions.SectionName)
+    .Get<PackageUploadOptions>() ?? new PackageUploadOptions();
+
+builder.Services.Configure<PackageUploadOptions>(
+    builder.Configuration.GetSection(PackageUploadOptions.SectionName));
+
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = packageUploadOptions.GetResolvedMaxPackageSizeBytes();
+});
+
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = packageUploadOptions.GetRequestBodySizeLimitBytes();
+});
+
 builder.Services.Configure<PackageSecurityOptions>(
     builder.Configuration.GetSection(PackageSecurityOptions.SectionName));
 
@@ -253,7 +273,16 @@ app.MapGet("/v3/registrations/{id}/{version}.json", async (HttpContext context, 
 // Upload package
 app.MapPut("/v3/push", async (HttpContext context, IPackageService packageService, IPackageEndpointAuthorizer authorizer) =>
 {
-    var form = await context.Request.ReadFormAsync();
+    IFormCollection form;
+    try
+    {
+        form = await context.Request.ReadFormAsync();
+    }
+    catch (InvalidDataException)
+    {
+        return Results.BadRequest($"Package file size cannot exceed {packageUploadOptions.GetMaxPackageSizeDisplay()}.");
+    }
+
     var packageFile = form.Files.GetFile("package");
 
     if (packageFile == null)
@@ -731,8 +760,6 @@ static string GetModernFrontendUI()
 
 // Make Program class accessible for testing
 public partial class Program { }
-
-
 
 
 

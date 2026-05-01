@@ -11,7 +11,8 @@ The CI/CD integration allows you to:
 - Integrate with your existing development workflow
 
 > Note
-> Nupack Server supports an optional shared write API key in the current 0.x line. When `PackageSecurity:WriteApiKey` is configured, `dotnet nuget push --api-key` maps to the `X-NuGet-ApiKey` header used by the built-in write protection.
+> Nupack Server supports a shared write API key in the current 0.x line. When `PackageSecurity:WriteApiKey` is configured, `dotnet nuget push --api-key` maps to the `X-NuGet-ApiKey` header used by the built-in write protection.
+> Blank write auth is allowed by default only in `Development`; production-like environments must configure a key or explicitly set `PackageSecurity:AllowAnonymousWrites=true`.
 ## GitHub Actions
 
 ### Basic Workflow
@@ -581,8 +582,6 @@ For solutions with multiple projects:
 ```
 
 This guide provides comprehensive CI/CD integration options for automating your NuGet package publishing workflow with Nupack Server.
-
-
 
 
 

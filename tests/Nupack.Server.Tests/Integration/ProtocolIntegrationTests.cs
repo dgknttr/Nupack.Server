@@ -261,6 +261,19 @@ public class ProtocolIntegrationTests
     }
 
     [Fact]
+    public async Task UploadPackage_WithPackageAboveConfiguredLimit_ReturnsBadRequest()
+    {
+        using var server = new TestServerContext(seedPackage: false, maxPackageSizeBytes: 3);
+        using var content = CreatePackageUploadContent(new byte[] { 1, 2, 3, 4 }, "TestPackage.1.0.0.nupkg");
+
+        var response = await server.Client.PutAsync("/v3/push", content);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var error = await response.Content.ReadAsStringAsync();
+        error.Should().Contain("Package file size cannot exceed 3 bytes.");
+    }
+
+    [Fact]
     public async Task DeletePackage_WithWriteApiKeyConfiguredAndMissingHeader_ReturnsUnauthorized()
     {
         using var server = new TestServerContext(seedPackage: true, writeApiKey: "secret-key");
@@ -338,11 +351,20 @@ public class ProtocolIntegrationTests
         return content;
     }
 
+    private static MultipartFormDataContent CreatePackageUploadContent(byte[] bytes, string fileName)
+    {
+        var content = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(bytes);
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+        content.Add(fileContent, "package", fileName);
+        return content;
+    }
+
     private sealed class TestServerContext : IDisposable
     {
         private readonly string _storagePath;
 
-        public TestServerContext(bool seedPackage, string? writeApiKey = null, Action<IServiceCollection>? configureServices = null)
+        public TestServerContext(bool seedPackage, string? writeApiKey = null, Action<IServiceCollection>? configureServices = null, long? maxPackageSizeBytes = null)
         {
             _storagePath = Path.Combine(Path.GetTempPath(), "Nupack.Server.Tests", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_storagePath);
@@ -362,7 +384,8 @@ public class ProtocolIntegrationTests
                         config.AddInMemoryCollection(new Dictionary<string, string?>
                         {
                             ["PackageStorage:BasePath"] = _storagePath,
-                            ["PackageSecurity:WriteApiKey"] = writeApiKey
+                            ["PackageSecurity:WriteApiKey"] = writeApiKey,
+                            ["PackageUpload:MaxPackageSizeBytes"] = maxPackageSizeBytes?.ToString()
                         });
                     });
                     builder.ConfigureServices(services => configureServices?.Invoke(services));

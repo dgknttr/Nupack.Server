@@ -3,11 +3,16 @@ extern alias NupackWeb;
 using System.Net;
 using FluentAssertions;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
+using Nupack.Server.Storage;
 using WebModels = NupackWeb::Nupack.Server.Web.Models;
 using WebServices = NupackWeb::Nupack.Server.Web.Services;
 using WebProgram = NupackWeb::Program;
@@ -70,12 +75,31 @@ public class WebSmokeTests
         html.Should().Contain("custom deployment");
     }
 
-    private static WebApplicationFactory<WebProgram> CreateFactory()
+    [Fact]
+    public void Startup_ConfiguresUploadRequestLimitsFromPackageUploadOptions()
+    {
+        using var factory = CreateFactory(maxPackageSizeBytes: 2 * 1024);
+
+        var formOptions = factory.Services.GetRequiredService<IOptions<FormOptions>>().Value;
+        var kestrelOptions = factory.Services.GetRequiredService<IOptions<KestrelServerOptions>>().Value;
+
+        formOptions.MultipartBodyLengthLimit.Should().Be(2 * 1024);
+        kestrelOptions.Limits.MaxRequestBodySize.Should().Be((2 * 1024) + (1024 * 1024));
+    }
+
+    private static WebApplicationFactory<WebProgram> CreateFactory(long? maxPackageSizeBytes = null)
     {
         return new WebApplicationFactory<WebProgram>()
             .WithWebHostBuilder(builder =>
             {
                 builder.UseEnvironment(Environments.Development);
+                builder.ConfigureAppConfiguration((_, config) =>
+                {
+                    config.AddInMemoryCollection(new Dictionary<string, string?>
+                    {
+                        ["PackageUpload:MaxPackageSizeBytes"] = maxPackageSizeBytes?.ToString()
+                    });
+                });
                 builder.ConfigureTestServices(services =>
                 {
                     services.RemoveAll<WebServices.INuGetApiService>();
@@ -183,4 +207,3 @@ public class WebSmokeTests
         }
     }
 }
-

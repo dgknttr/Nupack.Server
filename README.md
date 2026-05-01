@@ -70,7 +70,7 @@ Package metadata is still built conservatively by scanning stored `.nupkg` files
 | Nuspec endpoint | Supported | Returns extracted `.nuspec` XML |
 | Storage providers | Supported | `FileSystem` and `S3` are built in |
 | SemVer and prerelease handling | Partial | Core flows work; coverage is still growing |
-| Authentication | Partial | Optional shared API key for `push` and `delete` when configured |
+| Authentication | Partial | Blank write auth is open by default only in `Development`; outside `Development`, `push` and `delete` require `PackageSecurity:WriteApiKey` or explicit `PackageSecurity:AllowAnonymousWrites=true` |
 | Unlist | Not supported | |
 | Download stats | Not supported | UI treats stats as unavailable |
 
@@ -123,7 +123,7 @@ dotnet nuget add source "http://localhost:5003/v3/index.json" --name "Nupack Ser
 dotnet nuget push path/to/YourPackage.1.0.0.nupkg --source "Nupack Server"
 ```
 
-If you configure an optional shared write key for internal deployments, include it on push:
+If your deployment configures a shared write key, include it on push:
 
 ```bash
 dotnet nuget push path/to/YourPackage.1.0.0.nupkg --source "Nupack Server" --api-key "your-write-key"
@@ -203,6 +203,8 @@ Optional write auth for internal deployments can be enabled without changing rea
 
 Prefer the environment variable `PackageSecurity__WriteApiKey` or a secret store over committed configuration values.
 
+When `PackageSecurity:WriteApiKey` is empty, write endpoints stay open by default only in the `Development` environment for local reference use. Outside `Development`, missing write auth fails closed with `401 Unauthorized` unless you intentionally set `PackageSecurity:AllowAnonymousWrites` to `true`.
+
 ## Architecture at a Glance
 
 - API host: ASP.NET Core Minimal APIs for NuGet V3 endpoints and simple operational routes
@@ -256,7 +258,7 @@ This repository also follows [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## Security
 
-The current release line supports an optional shared `X-NuGet-ApiKey` for write operations when `PackageSecurity:WriteApiKey` is configured. If you expose this server outside a trusted environment, still use TLS, network controls, and stronger authentication layers where appropriate.
+The current release line supports a shared `X-NuGet-ApiKey` for write operations when `PackageSecurity:WriteApiKey` is configured. If you expose this server outside a trusted environment, configure a write key or explicitly opt in to anonymous writes with `PackageSecurity:AllowAnonymousWrites`, and still use TLS, network controls, and stronger authentication layers where appropriate.
 
 See [SECURITY.md](SECURITY.md) for the current policy and deployment guidance.
 
@@ -273,4 +275,3 @@ See [docs/roadmap.md](docs/roadmap.md) for details.
 ## License
 
 MIT
-
