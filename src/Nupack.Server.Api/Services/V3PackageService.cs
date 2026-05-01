@@ -67,6 +67,12 @@ public class V3PackageService : IV3PackageService
                     Id = $"{baseUrl}/v3/registrations/",
                     Type = "RegistrationsBaseUrl/3.0.0-rc",
                     Comment = "Base URL of Azure storage where NuGet package registration info is stored, in the format https://api.nuget.org/v3/registrations2/{{id-lower}}/index.json"
+                },
+                new()
+                {
+                    Id = $"{baseUrl}/v3/push",
+                    Type = "PackagePublish/2.0.0",
+                    Comment = "Package publish endpoint"
                 }
             }
         };

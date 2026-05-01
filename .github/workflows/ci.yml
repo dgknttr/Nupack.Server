@@ -132,7 +132,7 @@ jobs:
         run: |
           cp NuGet.Config smoke.nuget.config
           dotnet nuget add source "http://127.0.0.1:5003/v3/index.json" --name "nupack-smoke" --configfile smoke.nuget.config --allow-insecure-connections
-          dotnet nuget push test/TestPackage.1.0.0.nupkg --source "nupack-smoke" --configfile smoke.nuget.config --api-key "$NUPACK_SMOKE_WRITE_KEY" --skip-duplicate
+          dotnet nuget push test/TestPackage.1.0.0.nupkg --source "nupack-smoke" --configfile smoke.nuget.config --api-key "$NUPACK_SMOKE_WRITE_KEY" --skip-duplicate --allow-insecure-connections
 
       - name: Verify search endpoint
         run: |

@@ -35,6 +35,7 @@ public class ProtocolIntegrationTests
         serviceIndex.Version.Should().Be("3.0.0");
         serviceIndex.Resources.Should().Contain(resource => resource.Type.Contains("SearchQueryService"));
         serviceIndex.Resources.Should().Contain(resource => resource.Type.Contains("PackageBaseAddress"));
+        serviceIndex.Resources.Should().Contain(resource => resource.Type == "PackagePublish/2.0.0" && resource.Id.EndsWith("/v3/push"));
         serviceIndex.Resources.Should().OnlyContain(resource => resource.Id.StartsWith("http://localhost/"));
     }
 
