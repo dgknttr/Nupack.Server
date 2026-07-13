@@ -51,7 +51,7 @@ Six GitHub stars are a useful discovery signal, but they do not prove production
 | Package lifecycle | Delete immediately removes bytes and duplicate protection is a check followed by a write | Retries, races, or mistakes can break consumers | P0/P1 |
 | Metadata durability | Each process rebuilds an in-memory catalog by reopening every stored package | Startup cost grows with the feed and instances can disagree | P1/P2 |
 | S3 download memory | The whole object is copied into a `MemoryStream` | Large or concurrent downloads can exhaust memory | P1 |
-| Write authorization | One shared key protects both publish and delete | Publishers receive destructive delete authority and a shared credential is harder to rotate safely | P0 |
+| Credential migration | Publish and delete support separate credentials, while `WriteApiKey` remains a shared 0.x compatibility fallback | Deployments that keep the legacy fallback still grant publishers destructive delete authority | P1 |
 | Recovery | Backup, restore, reconciliation, and corruption checks are not executable workflows | Operators cannot prove their feed is recoverable | P1 |
 | Release truth | There are no tags, while the previous changelog claimed a production-ready `1.0.0` | Trust erodes when release claims and repository state diverge | P0 |
 

@@ -32,8 +32,9 @@ A lightweight NuGet V3 server reference implementation built with .NET 9.
 - Supported: `/health`
 
 ## Notes
-- Shared `X-NuGet-ApiKey` auth protects write endpoints when `PackageSecurity:WriteApiKey` is configured
-- Blank write auth is allowed by default only in Development; non-Development deployments must configure a key or opt in with `PackageSecurity:AllowAnonymousWrites`
+- Search, read, and download endpoints are anonymous
+- `X-NuGet-ApiKey` uses `PackageSecurity:PublishApiKey` for push and `PackageSecurity:DeleteApiKey` for delete; `WriteApiKey` is a 0.x compatibility fallback
+- Missing applicable write credentials are allowed by default only in Development; non-Development deployments must configure the operation-specific key or opt in with `PackageSecurity:AllowAnonymousWrites`
 - Rate limiting is not built in yet
 - API-hosted `/ui` and `/frontend` routes are legacy demo surfaces
 - Use `/swagger` and the repository docs for the current support matrix
@@ -760,7 +761,6 @@ static string GetModernFrontendUI()
 
 // Make Program class accessible for testing
 public partial class Program { }
-
 
 
 

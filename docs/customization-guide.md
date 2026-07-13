@@ -41,10 +41,12 @@ It runs before:
 The built-in default is `HeaderApiKeyPackageEndpointAuthorizer`.
 
 Behavior of the built-in default:
-- if `PackageSecurity:WriteApiKey` is empty in `Development`, write auth stays disabled for local reference use
-- if `PackageSecurity:WriteApiKey` is empty outside `Development`, write requests are denied unless `PackageSecurity:AllowAnonymousWrites` is `true`
-- if `PackageSecurity:WriteApiKey` is set, write requests must send `X-NuGet-ApiKey`
-- read endpoints remain anonymous either way
+- upload resolves `PackageSecurity:PublishApiKey`; delete resolves `PackageSecurity:DeleteApiKey`
+- `PackageSecurity:WriteApiKey` is a 0.x compatibility fallback when the applicable operation-specific key is empty
+- if no applicable operation-specific or legacy key exists in `Development`, that write operation remains open for local reference use
+- if no applicable key exists outside `Development`, that operation is denied unless `PackageSecurity:AllowAnonymousWrites` is `true`
+- when a key is resolved, the request must send it as `X-NuGet-ApiKey`
+- search, read, and download endpoints remain anonymous
 
 If your fork needs a different policy, replace the registration with your own implementation and return `PackageAuthorizationResult.Deny(...)` when a request should be blocked.
 

@@ -11,8 +11,8 @@ The CI/CD integration allows you to:
 - Integrate with your existing development workflow
 
 > Note
-> Nupack Server supports a shared write API key in the current 0.x line. When `PackageSecurity:WriteApiKey` is configured, `dotnet nuget push --api-key` maps to the `X-NuGet-ApiKey` header used by the built-in write protection.
-> Blank write auth is allowed by default only in `Development`; production-like environments must configure a key or explicitly set `PackageSecurity:AllowAnonymousWrites=true`.
+> Configure `PackageSecurity:PublishApiKey` for CI publishing. `dotnet nuget push --api-key` maps that credential to the `X-NuGet-ApiKey` header. Configure a separate `PackageSecurity:DeleteApiKey` only for maintenance workflows that delete packages; publishing jobs should not receive it.
+> `PackageSecurity:WriteApiKey` is a 0.x compatibility fallback for both operations, not the recommended setup. Missing applicable credentials are allowed by default only in `Development`; production-like environments must configure the operation-specific key or explicitly set `PackageSecurity:AllowAnonymousWrites=true`. Search, read, and download remain anonymous.
 ## GitHub Actions
 
 ### Basic Workflow
@@ -456,7 +456,9 @@ For all CI/CD platforms, configure these secrets:
 | Secret Name | Description | Example Value |
 |-------------|-------------|---------------|
 | `NUGET_SERVER_URL` | Your NuGet server API endpoint | `https://nuget.yourcompany.com/v3/index.json` |
-| `NUGET_API_KEY` | Optional shared write key for `push` and `delete` | `your-write-key-here` |
+| `NUGET_API_KEY` | Publish credential matching `PackageSecurity:PublishApiKey` | `your-publish-key-here` |
+
+Do not expose `PackageSecurity:DeleteApiKey` to ordinary publishing workflows. Store it as a separate secret only in an explicitly authorized package-removal workflow. Existing 0.x deployments may continue using `PackageSecurity:WriteApiKey` as a compatibility fallback while migrating.
 
 ### GitHub Actions Secrets
 
@@ -582,7 +584,6 @@ For solutions with multiple projects:
 ```
 
 This guide provides comprehensive CI/CD integration options for automating your NuGet package publishing workflow with Nupack Server.
-
 
 
 

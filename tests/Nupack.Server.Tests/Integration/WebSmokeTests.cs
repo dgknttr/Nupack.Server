@@ -59,7 +59,7 @@ public class WebSmokeTests
     }
 
     [Fact]
-    public async Task UploadPage_RendersConservativeAuthGuidance()
+    public async Task UploadPage_RendersPublishOnlyAuthGuidance()
     {
         using var factory = CreateFactory();
         using var client = factory.CreateClient();
@@ -71,8 +71,9 @@ public class WebSmokeTests
 
         var html = await response.Content.ReadAsStringAsync();
         html.Should().Contain("self-hosted feed");
-        html.Should().Contain("Most default setups do not require this");
-        html.Should().Contain("custom deployment");
+        html.Should().Contain("Publish API Key");
+        html.Should().Contain("never needs the separate delete credential");
+        html.Should().Contain("compatibility-only WriteApiKey");
     }
 
     [Fact]

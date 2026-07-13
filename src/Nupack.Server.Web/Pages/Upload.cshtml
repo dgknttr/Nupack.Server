@@ -29,7 +29,7 @@
             <!-- API Key Input -->
             <div>
                 <label asp-for="ApiKey" class="block text-sm font-medium text-gray-700 mb-2">
-                    API Key (Optional for custom deployments)
+                    Publish API Key
                 </label>
                 <div class="relative">
                     <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -39,7 +39,7 @@
                            class="w-full pl-10 pr-4 py-2 input-field" />
                 </div>
                 <p class="text-xs text-gray-500 mt-1">
-                    Most default setups do not require this. Use it only when the server is configured with an optional shared write key or your deployment expects X-NuGet-ApiKey.
+                    Use the server's publish credential when required; this page never needs the separate delete credential. Existing 0.x deployments may still accept the compatibility-only WriteApiKey.
                 </p>
                 <span asp-validation-for="ApiKey" class="text-red-600 text-sm"></span>
             </div>
