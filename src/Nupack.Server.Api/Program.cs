@@ -92,8 +92,10 @@ builder.Services.Configure<PackageSecurityOptions>(
 
 // Register our services
 builder.Services.AddNupackStorage(builder.Configuration);
+var readinessTimeout = PackageHealthOptions.ResolveReadinessTimeout(
+    builder.Configuration[$"{PackageHealthOptions.SectionName}:{PackageHealthOptions.ReadinessTimeoutSecondsKey}"]);
 builder.Services.AddHealthChecks()
-    .AddCheck<PackageStorageHealthCheck>("package-storage", tags: ["ready"]);
+    .AddCheck<PackageStorageHealthCheck>("package-storage", tags: ["ready"], timeout: readinessTimeout);
 builder.Services.AddScoped<IPackageService, PackageService>();
 builder.Services.AddScoped<IV3PackageService, V3PackageService>();
 builder.Services.AddScoped<IBaseUrlResolver, BaseUrlResolver>();
@@ -787,7 +789,6 @@ static string GetModernFrontendUI()
 
 // Make Program class accessible for testing
 public partial class Program { }
-
 
 
 

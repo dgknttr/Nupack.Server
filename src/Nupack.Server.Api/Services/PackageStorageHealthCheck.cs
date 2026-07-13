@@ -7,10 +7,14 @@ public sealed class PackageStorageHealthCheck : IHealthCheck
 {
     private const string UnavailableDescription = "Package storage is unavailable.";
     private readonly IPackageStorageService _storageService;
+    private readonly ILogger<PackageStorageHealthCheck> _logger;
 
-    public PackageStorageHealthCheck(IPackageStorageService storageService)
+    public PackageStorageHealthCheck(
+        IPackageStorageService storageService,
+        ILogger<PackageStorageHealthCheck> logger)
     {
         _storageService = storageService;
+        _logger = logger;
     }
 
     public async Task<HealthCheckResult> CheckHealthAsync(
@@ -26,8 +30,11 @@ public sealed class PackageStorageHealthCheck : IHealthCheck
         {
             throw;
         }
-        catch (Exception)
+        catch (Exception exception)
         {
+            _logger.LogWarning(
+                "Package storage readiness probe failed with {FailureType}.",
+                exception.GetType().Name);
             return HealthCheckResult.Unhealthy(UnavailableDescription);
         }
     }
