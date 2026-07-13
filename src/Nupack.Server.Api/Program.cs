@@ -333,7 +333,7 @@ app.MapDelete("/v3/delete/{id}/{version}", async (HttpContext context, string id
 .Produces(404);
 
 // ============================================================================
-// Web UI and Health Check
+// Root Service Index and Health Checks
 // ============================================================================
 
 // Root endpoint - return service index directly

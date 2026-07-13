@@ -138,9 +138,16 @@ public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
         response.Content.Headers.ContentType?.MediaType.Should().Be("application/json");
 
         var content = await response.Content.ReadAsStringAsync();
-        using var document = JsonDocument.Parse(content);
-        document.RootElement.TryGetProperty("resources", out var resources).Should().BeTrue();
-        resources.ValueKind.Should().Be(JsonValueKind.Array);
+        var serviceIndex = JsonSerializer.Deserialize<ServiceIndex>(content, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+
+        serviceIndex.Should().NotBeNull();
+        serviceIndex!.Version.Should().Be("3.0.0");
+        serviceIndex.Resources.Should().NotBeEmpty();
+        serviceIndex.Resources.Should().Contain(resource => resource.Type.Contains("SearchQueryService"));
+        serviceIndex.Resources.Should().Contain(resource => resource.Type.Contains("PackageBaseAddress"));
     }
 
     [Fact]
