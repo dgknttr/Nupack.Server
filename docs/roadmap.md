@@ -4,7 +4,7 @@ Nupack Server is developed as a small, hackable NuGet V3 feed for company-owned 
 
 ## 0.1 - Trustworthy First Run
 
-Goal: a new user can deploy the documented configuration and prove that push, restore, restart, and recovery work.
+Goal: a new user can deploy the documented configuration and prove that push, restore, and package persistence across a restart work.
 
 - make the container topology and health checks match the processes that actually run
 - test the published container, not only source-hosted applications

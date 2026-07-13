@@ -1,6 +1,6 @@
 # Trustworthy First Run Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> **Required workflow:** Use `subagent-driven-development` for every task: a fresh implementer completes the work, then a spec-compliance reviewer approves it, then a code-quality reviewer approves it before the next task begins.
 
 **Goal:** Deliver a credible `0.1` foundation for an internal NuGet feed with anonymous restore, separately protected publishing and deletion, meaningful readiness, and a tested container restart workflow.
 
