@@ -56,6 +56,30 @@ COPY --chown=appuser:appgroup <<EOF /app/start.sh
 #!/bin/bash
 set -u
 
+API_PID=""
+WEB_PID=""
+SHUTDOWN_STATUS=0
+
+terminate_child() {
+    local pid="\${1:-}"
+    if [[ -n "\$pid" ]] && kill -0 "\$pid" 2>/dev/null; then
+        kill -TERM "\$pid" 2>/dev/null || true
+    fi
+}
+
+terminate_children() {
+    terminate_child "\$API_PID"
+    terminate_child "\$WEB_PID"
+}
+
+request_shutdown() {
+    SHUTDOWN_STATUS="\$1"
+    terminate_children
+}
+
+trap 'request_shutdown 143' TERM
+trap 'request_shutdown 130' INT
+
 cd /app/server
 dotnet Nupack.Server.Api.dll --urls "http://0.0.0.0:5003" &
 API_PID=\$!
@@ -64,23 +88,29 @@ cd /app/web
 dotnet Nupack.Server.Web.dll --urls "http://0.0.0.0:5004" &
 WEB_PID=\$!
 
-terminate_children() {
-    kill -TERM "\$API_PID" "\$WEB_PID" 2>/dev/null || true
-}
-
-trap terminate_children TERM INT
+# A signal can arrive between either child launch and the next shell command.
+# Re-apply the shutdown request so a just-started child cannot escape it.
+if (( SHUTDOWN_STATUS != 0 )); then
+    terminate_children
+fi
 
 set +e
 wait -n "\$API_PID" "\$WEB_PID"
 FIRST_STATUS=\$?
 
+if (( SHUTDOWN_STATUS != 0 )); then
+    EXIT_STATUS=\$SHUTDOWN_STATUS
+else
+    EXIT_STATUS=\$FIRST_STATUS
+fi
+
 # Whether a child stopped or the container received a signal, stop its sibling
 # and reap both processes before exiting.
 terminate_children
-wait "\$API_PID" 2>/dev/null
-wait "\$WEB_PID" 2>/dev/null
+[[ -n "\$API_PID" ]] && wait "\$API_PID" 2>/dev/null
+[[ -n "\$WEB_PID" ]] && wait "\$WEB_PID" 2>/dev/null
 
-exit "\$FIRST_STATUS"
+exit "\$EXIT_STATUS"
 EOF
 
 RUN chmod +x /app/start.sh
@@ -92,7 +122,7 @@ ENV ASPNETCORE_ENVIRONMENT=Production \
     Branding__CompanyName="Your Organization"
 
 # Health check for both services
-HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl --fail --silent --show-error http://localhost:5003/health/ready > /dev/null && curl --fail --silent --show-error http://localhost:5004/health/live > /dev/null || exit 1
 
 # Expose ports for both services
