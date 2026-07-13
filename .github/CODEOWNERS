@@ -38,4 +38,3 @@ SECURITY.md @dgknttr @nupack-team
 # Critical security and infrastructure files (extra protection)
 /.github/workflows/security.yml @dgknttr @nupack-team
 /.github/dependabot.yml @dgknttr @nupack-team
-/.github/settings.yml @dgknttr @nupack-team
