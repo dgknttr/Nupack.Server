@@ -50,15 +50,19 @@ var app = builder.Build();
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
-    app.UseHsts();
 }
 
-app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
 
 app.UseAuthorization();
+
+app.MapGet("/health/live", () => Results.Ok(new HealthStatus
+{
+    Status = "healthy",
+    Timestamp = DateTime.UtcNow
+}));
 
 app.MapRazorPages();
 

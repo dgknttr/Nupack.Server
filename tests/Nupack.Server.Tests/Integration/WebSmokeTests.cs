@@ -1,6 +1,7 @@
 extern alias NupackWeb;
 
 using System.Net;
+using System.Net.Http.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http.Features;
@@ -22,6 +23,21 @@ namespace Nupack.Server.Tests.Integration;
 
 public class WebSmokeTests
 {
+    [Fact]
+    public async Task WebHealthLive_ReturnsHealthyJson()
+    {
+        using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/health/live");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var health = await response.Content.ReadFromJsonAsync<WebModels.HealthStatus>();
+        health.Should().NotBeNull();
+        health!.Status.Should().Be("healthy");
+        health.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(1));
+    }
+
     [Fact]
     public async Task HomePage_RendersPackagesAndCanonicalSourceUrl()
     {

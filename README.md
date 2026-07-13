@@ -143,20 +143,28 @@ dotnet nuget push path/to/YourPackage.1.0.0.nupkg --source "Nupack Server" --api
 Filesystem remains the default compose path:
 
 ```bash
+NUPACK_PUBLISH_API_KEY='replace-with-a-secret' \
+NUPACK_DELETE_API_KEY='replace-with-a-different-secret' \
 docker compose up --build
 ```
 
 S3-compatible local development uses MinIO through an optional profile:
 
 ```bash
+NUPACK_PUBLISH_API_KEY='replace-with-a-secret' \
+NUPACK_DELETE_API_KEY='replace-with-a-different-secret' \
 PACKAGE_STORAGE_PROVIDER=S3 docker compose --profile s3 up --build
 ```
+
+The compose file contains no default publish or delete secret. If either value is omitted in Production, that operation fails closed. Search, metadata, and package downloads remain anonymous.
 
 Default ports:
 - API: `http://localhost:5003`
 - Web UI: `http://localhost:5004`
 - MinIO API when profile enabled: `http://localhost:9000`
 - MinIO console when profile enabled: `http://localhost:9001`
+
+The application container serves HTTP on ports `5003` and `5004` only. Terminate TLS at a reverse proxy and forward traffic to those internal HTTP endpoints; the image does not contain or manage production certificates.
 
 ## Package Storage
 
@@ -264,7 +272,7 @@ This repository also follows [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## Security
 
-The current release line accepts `X-NuGet-ApiKey` with separate `PackageSecurity:PublishApiKey` and `PackageSecurity:DeleteApiKey` credentials. Search, read, and download remain anonymous. `PackageSecurity:WriteApiKey` is a compatibility-only fallback for existing `0.x` deployments. If you expose this server outside a trusted environment, configure the operation-specific keys or explicitly opt in to anonymous writes with `PackageSecurity:AllowAnonymousWrites`, and still use TLS, network controls, and stronger authentication layers where appropriate.
+The current release line accepts `X-NuGet-ApiKey` with separate `PackageSecurity:PublishApiKey` and `PackageSecurity:DeleteApiKey` credentials. Search, read, and download remain anonymous. `PackageSecurity:WriteApiKey` is a compatibility-only fallback for existing `0.x` deployments. If you expose this server outside a trusted environment, configure the operation-specific keys or explicitly opt in to anonymous writes with `PackageSecurity:AllowAnonymousWrites`, and still use TLS, network controls, and stronger authentication layers where appropriate. The container intentionally serves HTTP only; terminate TLS at a reverse proxy.
 
 See [SECURITY.md](SECURITY.md) for the current policy and deployment guidance.
 
