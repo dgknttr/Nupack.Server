@@ -5,8 +5,7 @@ Nupack Server is intentionally small so it can be forked and reshaped.
 ## Official Shape
 
 - `src/Nupack.Server.Api` is the protocol host
-- `src/Nupack.Server.Web` is the official UI
-- API `/ui` and `/frontend` routes are legacy demos
+- `src/Nupack.Server.Web` is the only supported UI and is exposed on port `5004` by the container
 - storage is now split into repo-local provider projects:
   - `src/Nupack.Server.Storage`
   - `src/Nupack.Server.Storage.FileSystem`

@@ -109,7 +109,7 @@ GET /health
 ## Notes
 
 - The separate Web app is the official UI.
-- `/ui` and `/frontend` in the API host are legacy demos.
+- The API host does not serve a UI. Use the separate Web app on port `5004`.
 - Search, read, and download endpoints remain anonymous.
 - Built-in write auth is intentionally minimal: `X-NuGet-ApiKey` uses separate publish and delete credentials. `PackageSecurity:WriteApiKey` is a compatibility-only `0.x` fallback for both operations. Missing applicable credentials are open by default only in `Development`.
 - Rate limiting and advanced admin workflows are not built in.

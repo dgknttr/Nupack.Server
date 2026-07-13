@@ -41,17 +41,9 @@ Typical flow for package push:
 3. Storage service extracts metadata and writes the package to disk.
 4. The in-memory cache is updated.
 
-## Official vs Legacy Surfaces
+## User Interface
 
-Official surfaces:
-- API host V3 endpoints
-- separate Web UI
-
-Legacy surfaces:
-- API `/ui`
-- API `/frontend`
-
-Those demo routes are retained for compatibility but are not the primary UI story for the repository.
+The API host serves the NuGet V3 protocol, Swagger, and health endpoints. The separate `Nupack.Server.Web` Razor Pages application is the only supported UI and is exposed on port `5004` by the container.
 
 ## Extension Seams
 

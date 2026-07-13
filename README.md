@@ -53,7 +53,7 @@ The solution contains two app hosts and three storage projects:
 - `src/Nupack.Server.Storage.FileSystem`: default filesystem provider
 - `src/Nupack.Server.Storage.S3`: S3-compatible provider for AWS S3, MinIO, and similar endpoints
 
-The API also contains `/ui` and `/frontend` demo routes, but those are **legacy demo surfaces** and not part of the official supported UI story.
+The separate Razor Pages application is the only supported UI. In the container it is available on port `5004`; the API host does not serve a UI.
 
 Package metadata is still built conservatively by scanning stored `.nupkg` files or objects at startup and caching the results in memory.
 

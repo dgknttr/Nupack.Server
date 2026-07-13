@@ -115,18 +115,16 @@ public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    [Fact]
-    public async Task SimpleUI_ReturnsSuccessResponse()
+    [Theory]
+    [InlineData("/ui")]
+    [InlineData("/frontend")]
+    public async Task LegacyApiHostedUi_ReturnsNotFound(string path)
     {
         // Act
-        var response = await _client.GetAsync("/ui");
+        var response = await _client.GetAsync(path);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        response.Content.Headers.ContentType?.MediaType.Should().Be("text/html");
-
-        var content = await response.Content.ReadAsStringAsync();
-        content.Should().Contain("Nupack Server");
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -137,12 +135,12 @@ public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        // Root path might return JSON (service index) or HTML depending on configuration
-        response.Content.Headers.ContentType?.MediaType.Should().BeOneOf("text/html", "application/json");
+        response.Content.Headers.ContentType?.MediaType.Should().Be("application/json");
 
         var content = await response.Content.ReadAsStringAsync();
-        // Content should contain either Nupack Server (HTML) or version info (JSON)
-        content.Should().MatchRegex("(Nupack|version|3\\.0\\.0)");
+        using var document = JsonDocument.Parse(content);
+        document.RootElement.TryGetProperty("resources", out var resources).Should().BeTrue();
+        resources.ValueKind.Should().Be(JsonValueKind.Array);
     }
 
     [Fact]
@@ -165,7 +163,6 @@ public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
     [Theory]
     [InlineData("/v3/index.json")]
     [InlineData("/v3/search")]
-    [InlineData("/ui")]
     [InlineData("/health")]
     public async Task Endpoints_ReturnSuccessAndCorrectContentType(string url)
     {
@@ -229,20 +226,6 @@ public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-    }
-
-    [Fact]
-    public async Task FrontendUI_ReturnsSuccessResponse()
-    {
-        // Act
-        var response = await _client.GetAsync("/frontend");
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        response.Content.Headers.ContentType?.MediaType.Should().Be("text/html");
-
-        var content = await response.Content.ReadAsStringAsync();
-        content.Should().Contain("Nupack");
     }
 
     [Theory]

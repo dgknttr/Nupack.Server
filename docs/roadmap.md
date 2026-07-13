@@ -11,7 +11,7 @@ Goal: a new user can deploy the documented configuration and prove that push, re
 - add readiness checks for the configured storage provider
 - verify push and restore with supported `dotnet` client versions
 - separate publish and delete credentials so publishers do not automatically receive destructive authority
-- remove or explicitly deprecate the API-hosted legacy UIs
+- keep the API host protocol-only and direct users to the separate Web UI
 - publish an honest support matrix and first tagged prerelease
 
 Exit gate: a clean machine can follow one documented path, push a fixture, restore it, restart the service, restore it again, and observe a meaningful readiness signal.
