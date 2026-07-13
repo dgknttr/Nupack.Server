@@ -5,6 +5,8 @@ using Nupack.Server.Api.Services;
 using Nupack.Server.Storage;
 using Nupack.Server.Storage.Models;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -29,7 +31,7 @@ A lightweight NuGet V3 server reference implementation built with .NET 9.
 ## Supported V3 Endpoints
 - Supported: `/v3/index.json`, `/v3/search`, `/v3-flatcontainer/*`, `/v3/registrations/*`
 - Supported: `PUT /v3/push`, `DELETE /v3/delete/{id}/{version}`
-- Supported: `/health`
+- Supported: `/health/live`, `/health/ready`, and readiness alias `/health`
 
 ## Notes
 - Search, read, and download endpoints are anonymous
@@ -90,6 +92,8 @@ builder.Services.Configure<PackageSecurityOptions>(
 
 // Register our services
 builder.Services.AddNupackStorage(builder.Configuration);
+builder.Services.AddHealthChecks()
+    .AddCheck<PackageStorageHealthCheck>("package-storage", tags: ["ready"]);
 builder.Services.AddScoped<IPackageService, PackageService>();
 builder.Services.AddScoped<IV3PackageService, V3PackageService>();
 builder.Services.AddScoped<IBaseUrlResolver, BaseUrlResolver>();
@@ -339,8 +343,20 @@ app.MapGet("/", (HttpContext context, IV3PackageService v3Service, IBaseUrlResol
     return Results.Json(serviceIndex);
 });
 
-// Health check
-app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
+// Health checks: liveness never probes external dependencies; readiness probes the selected storage provider.
+var livenessOptions = new HealthCheckOptions
+{
+    Predicate = _ => false,
+    ResponseWriter = WriteHealthResponseAsync
+};
+var readinessOptions = new HealthCheckOptions
+{
+    Predicate = registration => registration.Tags.Contains("ready"),
+    ResponseWriter = WriteHealthResponseAsync
+};
+app.MapHealthChecks("/health/live", livenessOptions);
+app.MapHealthChecks("/health/ready", readinessOptions);
+app.MapHealthChecks("/health", readinessOptions);
 
 // Legacy demo UI surface retained for compatibility.
 app.MapGet("/ui", () => Results.Content(GetSimpleWebUI(), "text/html"));
@@ -349,6 +365,16 @@ app.MapGet("/ui", () => Results.Content(GetSimpleWebUI(), "text/html"));
 app.MapGet("/frontend", () => Results.Content(GetModernFrontendUI(), "text/html"));
 
 app.Run();
+
+static Task WriteHealthResponseAsync(HttpContext context, HealthReport report)
+{
+    context.Response.ContentType = "application/json";
+    return context.Response.WriteAsJsonAsync(new
+    {
+        status = report.Status.ToString().ToLowerInvariant(),
+        timestamp = DateTime.UtcNow
+    });
+}
 
 static string GetSimpleWebUI()
 {
@@ -761,8 +787,6 @@ static string GetModernFrontendUI()
 
 // Make Program class accessible for testing
 public partial class Program { }
-
-
 
 
 

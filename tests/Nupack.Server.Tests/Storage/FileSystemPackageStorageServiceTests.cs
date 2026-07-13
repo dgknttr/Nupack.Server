@@ -60,6 +60,46 @@ public class FileSystemPackageStorageServiceTests
         }
     }
 
+    [Fact]
+    public async Task CheckHealthAsync_WhenPackageDirectoryIsWritable_SucceedsWithoutLeavingProbeArtifact()
+    {
+        var rootPath = CreateTempRoot();
+        try
+        {
+            var storage = CreateStorage(rootPath);
+            var packagesPath = Path.Combine(rootPath, "packages");
+
+            await storage.CheckHealthAsync();
+
+            Directory.GetFiles(packagesPath).Should().BeEmpty();
+        }
+        finally
+        {
+            Directory.Delete(rootPath, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task CheckHealthAsync_WhenPackageDirectoryIsUnavailable_Fails()
+    {
+        var rootPath = CreateTempRoot();
+        try
+        {
+            var storage = CreateStorage(rootPath);
+            var packagesPath = Path.Combine(rootPath, "packages");
+            Directory.Delete(packagesPath);
+            await File.WriteAllTextAsync(packagesPath, "not a directory");
+
+            var action = () => storage.CheckHealthAsync();
+
+            await action.Should().ThrowAsync<IOException>();
+        }
+        finally
+        {
+            Directory.Delete(rootPath, recursive: true);
+        }
+    }
+
     private static FileSystemPackageStorageService CreateStorage(string rootPath)
     {
         var environment = new TestWebHostEnvironment(rootPath);
@@ -107,4 +147,3 @@ public class FileSystemPackageStorageServiceTests
         public Microsoft.Extensions.FileProviders.IFileProvider ContentRootFileProvider { get; set; }
     }
 }
-

@@ -8,9 +8,12 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Moq;
 using Nupack.Server.Api.Models.V3;
 using Nupack.Server.Api.Services;
+using Nupack.Server.Storage.Services;
 using Xunit;
 
 namespace Nupack.Server.Tests.Integration;
@@ -154,6 +157,52 @@ public class ProtocolIntegrationTests
         var payload = await response.Content.ReadAsStringAsync();
         payload.Should().Contain("healthy");
         payload.Should().Contain("timestamp");
+    }
+
+    [Theory]
+    [InlineData("/health/live")]
+    [InlineData("/health/ready")]
+    [InlineData("/health")]
+    public async Task HealthEndpoints_WhenStorageIsHealthy_ReturnStableJson(string path)
+    {
+        using var server = new TestServerContext(seedPackage: false);
+
+        var response = await server.Client.GetAsync(path);
+        var payload = await response.Content.ReadAsStringAsync();
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Content.Headers.ContentType?.MediaType.Should().Be("application/json");
+        payload.Should().Contain("status");
+        payload.Should().Contain("healthy");
+        payload.Should().Contain("timestamp");
+    }
+
+    [Fact]
+    public async Task HealthEndpoints_WhenStorageFails_ReadinessFailsButLivenessStaysHealthy()
+    {
+        var storage = new Mock<IPackageStorageService>();
+        storage.Setup(value => value.GetTotalPackageCountAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+        storage.Setup(value => value.CheckHealthAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("SecretKey=must-not-leak"));
+        using var server = new TestServerContext(seedPackage: false, configureServices: services =>
+        {
+            services.RemoveAll<IPackageStorageService>();
+            services.AddSingleton(storage.Object);
+        });
+
+        var liveResponse = await server.Client.GetAsync("/health/live");
+        var readyResponse = await server.Client.GetAsync("/health/ready");
+        var aliasResponse = await server.Client.GetAsync("/health");
+        var readyPayload = await readyResponse.Content.ReadAsStringAsync();
+
+        liveResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        readyResponse.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
+        aliasResponse.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
+        readyPayload.Should().Contain("unhealthy");
+        readyPayload.Should().Contain("timestamp");
+        readyPayload.Should().NotContain("must-not-leak");
+        storage.Verify(value => value.CheckHealthAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
     [Fact]
