@@ -56,7 +56,7 @@ Strong pull requests usually do at least one of these:
 - If behavior changes, update the docs in the same PR.
 - If a protocol-facing endpoint changes, add or update tests.
 - Do not market unsupported features as supported.
-- Prefer the separate Web app over the legacy demo UIs when documenting UI behavior.
+- Document the separate `Nupack.Server.Web` app on port `5004` as the only supported UI; the API-hosted `/ui` and `/frontend` demos were removed.
 
 ## Branch and Commit Guidance
 

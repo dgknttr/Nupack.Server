@@ -43,4 +43,4 @@ This app is a thin client over the API host. The easiest ways to customize it ar
 
 ## Why This UI Is Official
 
-The API project still contains `/ui` and `/frontend` demo routes, but those are legacy demo surfaces. The separate Web app is the supported UI for contributors and users.
+The API-hosted `/ui` and `/frontend` demo routes were removed. This separate `Nupack.Server.Web` application, exposed on port `5004` by the container, is the only supported UI.

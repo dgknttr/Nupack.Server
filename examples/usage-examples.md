@@ -139,4 +139,4 @@ curl -X DELETE http://localhost:5003/v3/delete/TestPackage/1.0.0 -H "X-NuGet-Api
 - built-in auth is intentionally minimal: search/read/download remain anonymous; outside `Development`, push uses `PackageSecurity:PublishApiKey` and delete uses `PackageSecurity:DeleteApiKey`, unless `PackageSecurity:AllowAnonymousWrites=true` is explicitly enabled. `PackageSecurity:WriteApiKey` is a 0.x compatibility fallback only
 - storage providers in the repo today are `FileSystem` and `S3`
 - download statistics and unlisting are not supported yet
-- the separate Web app is the official UI; the API `/ui` and `/frontend` routes are legacy demos
+- the API-hosted `/ui` and `/frontend` demos were removed; the separate `Nupack.Server.Web` app on port `5004` is the only supported UI
