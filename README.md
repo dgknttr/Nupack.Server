@@ -4,9 +4,9 @@
 ![Security](https://github.com/dgknttr/Nupack.Server/actions/workflows/security.yml/badge.svg)
 ![CodeQL](https://github.com/dgknttr/Nupack.Server/actions/workflows/codeql.yml/badge.svg)
 
-Nupack Server is a lightweight, self-hosted **NuGet V3 server reference implementation** built with ASP.NET Core 9.
+Nupack Server is a lightweight, self-hosted **NuGet V3 server and feed** built with ASP.NET Core 9. Its primary use case is publishing a company's own internal `.nupkg` packages so developers and CI jobs can restore them from infrastructure the company controls.
 
-**30-second pitch:** fork it, run it, study it, or adapt it into your own self-hosted NuGet feed.
+**30-second pitch:** run a small internal feed with anonymous search/download and authenticated publishing, or fork and adapt the implementation to your environment.
 
 It is designed to be:
 - easy to fork
@@ -14,7 +14,7 @@ It is designed to be:
 - easy to customize
 - honest about what is supported today
 
-This repository is **not** trying to compete with full package platforms. The goal is a solid starter kit for teams, side projects, labs, and contributors who want a hackable NuGet feed they can run, study, and evolve.
+This repository is **not** trying to compete with full package platforms. The goal is a solid starter kit for teams, side projects, labs, and contributors who want a hackable NuGet feed they can run, study, and evolve. Nupack implements the server side of NuGet V3; it does not replace the NuGet client, the `.nupkg` format, or standard commands such as `dotnet restore` and `dotnet nuget push`.
 
 ## Quick Paths
 
@@ -22,10 +22,13 @@ This repository is **not** trying to compete with full package platforms. The go
 - Want to run it with containers: jump to [Docker-First Run](#docker-first-run)
 - Want object storage: jump to [Package Storage](#package-storage)
 - Want to contribute: start with [CONTRIBUTING.md](CONTRIBUTING.md)
+- Want to understand the product direction: read the [needs analysis](docs/needs-analysis.md) and [roadmap](docs/roadmap.md)
 
 ## Why This Exists
 
-Nupack Server exists for teams and contributors who want a small, readable NuGet V3 server they can actually fork and reshape, without signing up for a larger package platform.
+Nupack Server exists first for .NET teams that need to publish and restore their own company packages without adopting a larger package platform. It also serves contributors who want a small, readable NuGet V3 server they can fork and reshape.
+
+The default internal-feed model treats the company network, VPN, or reverse proxy as the read boundary: package search, metadata, and downloads are anonymous, while publish and delete are authenticated. The `0.1` direction separates publish and delete credentials because those operations carry different risks. Authentication for reads can be added at a reverse proxy or through customization, but it is optional and is not a `0.1` requirement.
 
 ## Who This Is For
 
@@ -264,11 +267,7 @@ See [SECURITY.md](SECURITY.md) for the current policy and deployment guidance.
 
 ## Roadmap
 
-The roadmap is phased:
-- Phase 1: trust reset, docs honesty, onboarding, support matrix
-- Phase 2: protocol correctness and smoke coverage
-- Phase 3: extension seams and customization guidance
-- Phase 4: package extraction for embedding
+The roadmap is release-gated, beginning with a trustworthy `0.1` deployment and then package integrity, durable operations, and stable extension seams.
 
 See [docs/roadmap.md](docs/roadmap.md) for details.
 

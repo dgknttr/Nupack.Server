@@ -140,7 +140,7 @@ jobs:
 
       - name: Restore sample project from local feed
         run: |
-          dotnet restore test-project/test-project.csproj --configfile test-project/nuget.config
+          dotnet restore tests/Fixtures/Consumer/Consumer.csproj --configfile tests/Fixtures/Consumer/nuget.config
 
       - name: Dump API log on failure
         if: failure()
