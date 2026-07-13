@@ -68,7 +68,7 @@ Package metadata is still built conservatively by scanning stored `.nupkg` files
 | Registration index/page/leaf | Supported | Simplified registration model |
 | Package push | Supported | `PUT /v3/push` |
 | Package delete | Supported | `DELETE /v3/delete/{id}/{version}` |
-| Health endpoint | Supported | `/health` |
+| Health endpoints | Supported | `/health/live`; storage-backed `/health/ready`; `/health` readiness alias |
 | Web browse/search/upload | Supported | Separate Web app is the official UI |
 | Nuspec endpoint | Supported | Returns extracted `.nuspec` XML |
 | Storage providers | Supported | `FileSystem` and `S3` are built in |
@@ -193,6 +193,8 @@ The legacy shorthand still works for existing filesystem installs:
 ```
 
 See [package storage configuration](docs/package-storage-configuration.md) for more examples.
+
+Storage readiness probes have a five-second timeout by default. Configure an integer from `1` through `300` with `PackageHealth:ReadinessTimeoutSeconds`, or set the environment variable `PackageHealth__ReadinessTimeoutSeconds`. Missing, malformed, non-positive, or greater-than-300 values safely fall back to five seconds.
 
 State-changing operations can use separate credentials without changing anonymous search, read, or download endpoints:
 
