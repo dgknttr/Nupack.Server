@@ -73,7 +73,7 @@ Package metadata is still built conservatively by scanning stored `.nupkg` files
 | Nuspec endpoint | Supported | Returns extracted `.nuspec` XML |
 | Storage providers | Supported | `FileSystem` and `S3` are built in |
 | SemVer and prerelease handling | Partial | Core flows work; coverage is still growing |
-| Authentication | Partial | Blank write auth is open by default only in `Development`; outside `Development`, `push` and `delete` require `PackageSecurity:WriteApiKey` or explicit `PackageSecurity:AllowAnonymousWrites=true` |
+| Authentication | Partial | Search/read/download are anonymous. Outside `Development`, `push` and `delete` use separate API keys unless `PackageSecurity:AllowAnonymousWrites=true` is explicitly enabled |
 | Unlist | Not supported | |
 | Download stats | Not supported | UI treats stats as unavailable |
 
@@ -126,10 +126,10 @@ dotnet nuget add source "http://localhost:5003/v3/index.json" --name "Nupack Ser
 dotnet nuget push path/to/YourPackage.1.0.0.nupkg --source "Nupack Server"
 ```
 
-If your deployment configures a shared write key, include it on push:
+If your deployment configures a publish key, include it on push:
 
 ```bash
-dotnet nuget push path/to/YourPackage.1.0.0.nupkg --source "Nupack Server" --api-key "your-write-key"
+dotnet nuget push path/to/YourPackage.1.0.0.nupkg --source "Nupack Server" --api-key "your-publish-key"
 ```
 
 ### 5. Browse the feed
@@ -194,19 +194,20 @@ The legacy shorthand still works for existing filesystem installs:
 
 See [package storage configuration](docs/package-storage-configuration.md) for more examples.
 
-Optional write auth for internal deployments can be enabled without changing read endpoints:
+State-changing operations can use separate credentials without changing anonymous search, read, or download endpoints:
 
 ```json
 {
   "PackageSecurity": {
-    "WriteApiKey": "set-via-env-or-secret-store"
+    "PublishApiKey": "set-publish-key-via-env-or-secret-store",
+    "DeleteApiKey": "set-delete-key-via-env-or-secret-store"
   }
 }
 ```
 
-Prefer the environment variable `PackageSecurity__WriteApiKey` or a secret store over committed configuration values.
+Prefer the environment variables `PackageSecurity__PublishApiKey` and `PackageSecurity__DeleteApiKey`, or a secret store, over committed configuration values. Give the delete key only to maintainers that need package removal access.
 
-When `PackageSecurity:WriteApiKey` is empty, write endpoints stay open by default only in the `Development` environment for local reference use. Outside `Development`, missing write auth fails closed with `401 Unauthorized` unless you intentionally set `PackageSecurity:AllowAnonymousWrites` to `true`.
+`PackageSecurity:WriteApiKey` remains a compatibility-only `0.x` fallback for both operations. New deployments should configure the separate keys. When an applicable operation-specific key and the legacy fallback are both empty, that operation stays open by default only in `Development`. Outside `Development`, it fails closed with `401 Unauthorized` unless you intentionally set `PackageSecurity:AllowAnonymousWrites` to `true`.
 
 ## Architecture at a Glance
 
@@ -261,7 +262,7 @@ This repository also follows [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## Security
 
-The current release line supports a shared `X-NuGet-ApiKey` for write operations when `PackageSecurity:WriteApiKey` is configured. If you expose this server outside a trusted environment, configure a write key or explicitly opt in to anonymous writes with `PackageSecurity:AllowAnonymousWrites`, and still use TLS, network controls, and stronger authentication layers where appropriate.
+The current release line accepts `X-NuGet-ApiKey` with separate `PackageSecurity:PublishApiKey` and `PackageSecurity:DeleteApiKey` credentials. Search, read, and download remain anonymous. `PackageSecurity:WriteApiKey` is a compatibility-only fallback for existing `0.x` deployments. If you expose this server outside a trusted environment, configure the operation-specific keys or explicitly opt in to anonymous writes with `PackageSecurity:AllowAnonymousWrites`, and still use TLS, network controls, and stronger authentication layers where appropriate.
 
 See [SECURITY.md](SECURITY.md) for the current policy and deployment guidance.
 

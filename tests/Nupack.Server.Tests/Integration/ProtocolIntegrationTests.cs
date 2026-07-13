@@ -183,7 +183,7 @@ public class ProtocolIntegrationTests
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
         var payload = await response.Content.ReadAsStringAsync();
-        payload.Should().Contain(HeaderApiKeyPackageEndpointAuthorizer.InvalidApiKeyMessage);
+        payload.Should().Contain(HeaderApiKeyPackageEndpointAuthorizer.InvalidPublishApiKeyMessage);
     }
 
     [Fact]
@@ -197,7 +197,7 @@ public class ProtocolIntegrationTests
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         var payload = await response.Content.ReadAsStringAsync();
-        payload.Should().Contain(HeaderApiKeyPackageEndpointAuthorizer.InvalidApiKeyMessage);
+        payload.Should().Contain(HeaderApiKeyPackageEndpointAuthorizer.InvalidPublishApiKeyMessage);
     }
 
     [Fact]
@@ -283,7 +283,7 @@ public class ProtocolIntegrationTests
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         var payload = await response.Content.ReadAsStringAsync();
-        payload.Should().Contain(HeaderApiKeyPackageEndpointAuthorizer.InvalidApiKeyMessage);
+        payload.Should().Contain(HeaderApiKeyPackageEndpointAuthorizer.InvalidDeleteApiKeyMessage);
     }
 
     [Fact]

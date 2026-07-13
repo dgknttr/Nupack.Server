@@ -128,14 +128,14 @@ paths:
           required: false
           schema:
             type: string
-          description: Required outside Development unless PackageSecurity:AllowAnonymousWrites is enabled. Must match PackageSecurity:WriteApiKey when configured.
+          description: Required outside Development unless PackageSecurity:AllowAnonymousWrites is enabled. Must match PackageSecurity:PublishApiKey when configured; PackageSecurity:WriteApiKey is a compatibility-only fallback.
       responses:
         '201':
           description: Package uploaded successfully
         '400':
           description: Invalid package or duplicate version
         '401':
-          description: Write API key missing or invalid
+          description: Publish API key missing or invalid
   /v3/delete/{id}/{version}:
     delete:
       summary: Delete a package version
@@ -145,12 +145,12 @@ paths:
           required: false
           schema:
             type: string
-          description: Required outside Development unless PackageSecurity:AllowAnonymousWrites is enabled. Must match PackageSecurity:WriteApiKey when configured.
+          description: Required outside Development unless PackageSecurity:AllowAnonymousWrites is enabled. Must match PackageSecurity:DeleteApiKey when configured; PackageSecurity:WriteApiKey is a compatibility-only fallback.
       responses:
         '204':
           description: Package deleted successfully
         '401':
-          description: Write API key missing or invalid
+          description: Delete API key missing or invalid
         '404':
           description: Package version not found
   /health:
