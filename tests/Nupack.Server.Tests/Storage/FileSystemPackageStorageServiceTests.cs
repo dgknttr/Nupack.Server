@@ -100,6 +100,28 @@ public class FileSystemPackageStorageServiceTests
         }
     }
 
+    [Fact]
+    public async Task CheckHealthAsync_WhenAlreadyCanceled_ThrowsWithoutLeavingProbeArtifact()
+    {
+        var rootPath = CreateTempRoot();
+        try
+        {
+            var storage = CreateStorage(rootPath);
+            var packagesPath = Path.Combine(rootPath, "packages");
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+
+            var action = () => storage.CheckHealthAsync(cancellation.Token);
+
+            await action.Should().ThrowAsync<OperationCanceledException>();
+            Directory.GetFiles(packagesPath, ".nupack-health-*").Should().BeEmpty();
+        }
+        finally
+        {
+            Directory.Delete(rootPath, recursive: true);
+        }
+    }
+
     private static FileSystemPackageStorageService CreateStorage(string rootPath)
     {
         var environment = new TestWebHostEnvironment(rootPath);
