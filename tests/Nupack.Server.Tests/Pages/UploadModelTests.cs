@@ -43,6 +43,22 @@ public class UploadModelTests
     }
 
     [Fact]
+    public async Task OnPostAsync_WithUnauthorizedResponseWithoutDetail_ReturnsPublishSpecificFallback()
+    {
+        var httpClient = new HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.Unauthorized)
+        {
+            Content = new StringContent("{}", Encoding.UTF8, "application/problem+json")
+        }));
+        var model = CreateModel(httpClient);
+        model.PackageFile = CreatePackageFile();
+
+        await model.OnPostAsync();
+
+        model.IsSuccess.Should().BeFalse();
+        model.Message.Should().Be("A valid X-NuGet-ApiKey header is required to publish packages.");
+    }
+
+    [Fact]
     public async Task OnPostAsync_WithApiKey_SendsHeaderToApi()
     {
         HttpRequestMessage? capturedRequest = null;

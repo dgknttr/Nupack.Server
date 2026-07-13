@@ -60,6 +60,63 @@ public class HeaderApiKeyPackageEndpointAuthorizerTests
     }
 
     [Fact]
+    public async Task PublishKey_TakesPrecedenceOverLegacyWriteKey()
+    {
+        var authorizer = CreateAuthorizer(
+            writeApiKey: "legacy-key",
+            publishApiKey: "publish-key",
+            environmentName: Environments.Production);
+
+        var publishResult = await authorizer.AuthorizeUploadAsync(
+            CreateContextWithApiKey("publish-key"),
+            CreatePackageFile());
+        var legacyResult = await authorizer.AuthorizeUploadAsync(
+            CreateContextWithApiKey("legacy-key"),
+            CreatePackageFile());
+
+        publishResult.IsAllowed.Should().BeTrue();
+        legacyResult.IsAllowed.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task DeleteKey_TakesPrecedenceOverLegacyWriteKey()
+    {
+        var authorizer = CreateAuthorizer(
+            writeApiKey: "legacy-key",
+            deleteApiKey: "delete-key",
+            environmentName: Environments.Production);
+
+        var deleteResult = await authorizer.AuthorizeDeleteAsync(
+            CreateContextWithApiKey("delete-key"),
+            "TestPackage",
+            "1.0.0");
+        var legacyResult = await authorizer.AuthorizeDeleteAsync(
+            CreateContextWithApiKey("legacy-key"),
+            "TestPackage",
+            "1.0.0");
+
+        deleteResult.IsAllowed.Should().BeTrue();
+        legacyResult.IsAllowed.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task WhitespaceOperationKeys_FallBackToLegacyWriteKey()
+    {
+        var authorizer = CreateAuthorizer(
+            writeApiKey: "legacy-key",
+            publishApiKey: "  ",
+            deleteApiKey: "\t",
+            environmentName: Environments.Production);
+        var context = CreateContextWithApiKey("legacy-key");
+
+        var uploadResult = await authorizer.AuthorizeUploadAsync(context, CreatePackageFile());
+        var deleteResult = await authorizer.AuthorizeDeleteAsync(context, "TestPackage", "1.0.0");
+
+        uploadResult.IsAllowed.Should().BeTrue();
+        deleteResult.IsAllowed.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task MissingDeleteKey_FailsClosedOutsideDevelopment()
     {
         var authorizer = CreateAuthorizer(
