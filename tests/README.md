@@ -16,7 +16,7 @@ Run the production-image smoke workflow locally with Docker, `dotnet`, and `curl
 bash tests/smoke/container-smoke.sh
 ```
 
-It performs real NuGet push and restore operations, restarts the same container with its filesystem volume, then restores through a different empty client cache. Package source mapping pins `TestPackage` exactly to Nupack while allowing framework packs and other dependencies to resolve from NuGet.org; the detailed restore log is checked to prove the sample package came from Nupack. Temporary containers, volumes, caches, and generated credentials are unique per run and cleaned up automatically.
+It performs real NuGet push and restore operations, restarts the same container with its filesystem volume, then restores through a different empty client cache. Package source mapping pins `TestPackage` exactly to Nupack while allowing framework packs and other dependencies to resolve from NuGet.org; the fresh cache file and Nupack's package-download request log prove where the sample package came from without depending on localized CLI output. Temporary containers, volumes, caches, and generated credentials are unique per run and cleaned up automatically.
 
 To collect coverage locally:
 

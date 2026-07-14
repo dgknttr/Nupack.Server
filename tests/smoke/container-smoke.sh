@@ -11,6 +11,7 @@ PUBLISH_API_KEY="${NUPACK_SMOKE_PUBLISH_KEY:-publish-${RUN_ID}}"
 DELETE_API_KEY="${NUPACK_SMOKE_DELETE_KEY:-delete-${RUN_ID}}"
 HEALTH_ATTEMPTS="${HEALTH_ATTEMPTS:-60}"
 TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/nupack-container-smoke.XXXXXX")"
+PACKAGE_DOWNLOAD_PATH="/v3-flatcontainer/testpackage/1.0.0/testpackage.1.0.0.nupkg"
 CONTAINER_STARTED=0
 
 cleanup() {
@@ -58,21 +59,51 @@ published_port() {
     printf '%s\n' "${binding##*:}"
 }
 
+package_download_count() {
+    local container_logs
+
+    if ! container_logs="$(docker logs "${CONTAINER_NAME}" 2>&1)"; then
+        echo "Could not read logs from ${CONTAINER_NAME} to verify the package download." >&2
+        return 1
+    fi
+
+    awk -v path="${PACKAGE_DOWNLOAD_PATH}" '
+        index($0, path) { count++ }
+        END { print count + 0 }
+    ' <<<"${container_logs}"
+}
+
 restore_consumer() {
     local packages_dir="$1"
     local http_cache_dir="$2"
     local restore_log="$3"
+    local downloads_before
+    local downloads_after
 
-    NUGET_PACKAGES="${packages_dir}" \
-    NUGET_HTTP_CACHE_PATH="${http_cache_dir}" \
+    downloads_before="$(package_download_count)"
+
+    if ! NUGET_PACKAGES="${packages_dir}" \
+        NUGET_HTTP_CACHE_PATH="${http_cache_dir}" \
         dotnet restore "${ROOT_DIR}/tests/Fixtures/Consumer/Consumer.csproj" \
         --configfile "${TEMP_DIR}/nuget.config" \
         --no-cache \
         --force \
-        --verbosity detailed 2>&1 | tee "${restore_log}"
+        --verbosity minimal >"${restore_log}" 2>&1; then
+        echo "Consumer restore failed. Last 100 log lines:" >&2
+        tail -n 100 "${restore_log}" >&2
+        return 1
+    fi
 
-    if ! grep -F "Installed TestPackage 1.0.0 from ${API_URL}/v3/index.json" "${restore_log}" >/dev/null; then
-        echo "Restore did not prove that TestPackage 1.0.0 came from Nupack (${API_URL})." >&2
+    if [[ ! -f "${packages_dir}/testpackage/1.0.0/testpackage.1.0.0.nupkg" ]]; then
+        echo "Restore succeeded but the fresh package cache does not contain TestPackage 1.0.0." >&2
+        tail -n 100 "${restore_log}" >&2
+        return 1
+    fi
+
+    downloads_after="$(package_download_count)"
+    if (( downloads_after <= downloads_before )); then
+        echo "Restore did not request ${PACKAGE_DOWNLOAD_PATH} from Nupack." >&2
+        echo "Package download requests observed before/after restore: ${downloads_before}/${downloads_after}" >&2
         echo "Relevant restore log lines:" >&2
         grep -iE "TestPackage|package source mapping|Nupack" "${restore_log}" >&2 || true
         return 1
