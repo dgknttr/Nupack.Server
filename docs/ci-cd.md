@@ -585,6 +585,17 @@ For solutions with multiple projects:
 
 This guide provides comprehensive CI/CD integration options for automating your NuGet package publishing workflow with Nupack Server.
 
+## Repository Container Smoke Gate
+
+The repository CI runs a required production-image smoke test after the unit/integration and S3-provider jobs:
+
+```bash
+bash tests/smoke/container-smoke.sh
+```
+
+The script builds the Dockerfile, starts the API and Web hosts with bounded health waits, pushes the fixture package using a generated publish key, and restores it with an empty package cache. It then restarts the same container and filesystem volume and restores into a second empty cache. The second package file and detailed restore logs prove both server-side persistence and that `TestPackage` was obtained from Nupack rather than NuGet.org or a previous client cache. The image publishing job cannot run until this gate succeeds.
+
+For a previously built local image, use `SKIP_BUILD=1 IMAGE_TAG=<local-image>`. Generated keys and Docker resource names are per-run; the cleanup trap removes containers, volumes, caches, and temporary configuration on success or failure.
 
 
 

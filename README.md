@@ -166,6 +166,14 @@ Default ports:
 
 The application container serves HTTP on ports `5003` and `5004` only. Terminate TLS at a reverse proxy and forward traffic to those internal HTTP endpoints; the image does not contain or manage production certificates.
 
+The repository's container smoke test builds the real image, publishes `TestPackage`, restores it into an empty NuGet cache, restarts the container with the same filesystem volume, and restores again into a second empty cache. This verifies that the package is served by Nupack and survives a restart independently of client caches:
+
+```bash
+bash tests/smoke/container-smoke.sh
+```
+
+Docker, `dotnet`, and `curl` are required. Set `SKIP_BUILD=1 IMAGE_TAG=<local-image>` to exercise an existing image.
+
 ## Package Storage
 
 Preferred configuration shape:
