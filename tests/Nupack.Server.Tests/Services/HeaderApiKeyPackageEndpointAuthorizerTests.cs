@@ -13,6 +13,124 @@ namespace Nupack.Server.Tests.Services;
 public class HeaderApiKeyPackageEndpointAuthorizerTests
 {
     [Fact]
+    public async Task PublishKey_AuthorizesUpload_ButNotDelete()
+    {
+        var authorizer = CreateAuthorizer(
+            publishApiKey: "publish-key",
+            environmentName: Environments.Production);
+        var context = CreateContextWithApiKey("publish-key");
+
+        var uploadResult = await authorizer.AuthorizeUploadAsync(context, CreatePackageFile());
+        var deleteResult = await authorizer.AuthorizeDeleteAsync(context, "TestPackage", "1.0.0");
+
+        uploadResult.IsAllowed.Should().BeTrue();
+        deleteResult.IsAllowed.Should().BeFalse();
+        deleteResult.Message.Should().Be(HeaderApiKeyPackageEndpointAuthorizer.DeleteApiKeyNotConfiguredMessage);
+    }
+
+    [Fact]
+    public async Task DeleteKey_AuthorizesDelete_ButNotUpload()
+    {
+        var authorizer = CreateAuthorizer(
+            deleteApiKey: "delete-key",
+            environmentName: Environments.Production);
+        var context = CreateContextWithApiKey("delete-key");
+
+        var deleteResult = await authorizer.AuthorizeDeleteAsync(context, "TestPackage", "1.0.0");
+        var uploadResult = await authorizer.AuthorizeUploadAsync(context, CreatePackageFile());
+
+        deleteResult.IsAllowed.Should().BeTrue();
+        uploadResult.IsAllowed.Should().BeFalse();
+        uploadResult.Message.Should().Be(HeaderApiKeyPackageEndpointAuthorizer.PublishApiKeyNotConfiguredMessage);
+    }
+
+    [Fact]
+    public async Task LegacyWriteKey_AuthorizesBothOperations()
+    {
+        var authorizer = CreateAuthorizer(
+            writeApiKey: "legacy-key",
+            environmentName: Environments.Production);
+        var context = CreateContextWithApiKey("legacy-key");
+
+        var uploadResult = await authorizer.AuthorizeUploadAsync(context, CreatePackageFile());
+        var deleteResult = await authorizer.AuthorizeDeleteAsync(context, "TestPackage", "1.0.0");
+
+        uploadResult.IsAllowed.Should().BeTrue();
+        deleteResult.IsAllowed.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task PublishKey_TakesPrecedenceOverLegacyWriteKey()
+    {
+        var authorizer = CreateAuthorizer(
+            writeApiKey: "legacy-key",
+            publishApiKey: "publish-key",
+            environmentName: Environments.Production);
+
+        var publishResult = await authorizer.AuthorizeUploadAsync(
+            CreateContextWithApiKey("publish-key"),
+            CreatePackageFile());
+        var legacyResult = await authorizer.AuthorizeUploadAsync(
+            CreateContextWithApiKey("legacy-key"),
+            CreatePackageFile());
+
+        publishResult.IsAllowed.Should().BeTrue();
+        legacyResult.IsAllowed.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task DeleteKey_TakesPrecedenceOverLegacyWriteKey()
+    {
+        var authorizer = CreateAuthorizer(
+            writeApiKey: "legacy-key",
+            deleteApiKey: "delete-key",
+            environmentName: Environments.Production);
+
+        var deleteResult = await authorizer.AuthorizeDeleteAsync(
+            CreateContextWithApiKey("delete-key"),
+            "TestPackage",
+            "1.0.0");
+        var legacyResult = await authorizer.AuthorizeDeleteAsync(
+            CreateContextWithApiKey("legacy-key"),
+            "TestPackage",
+            "1.0.0");
+
+        deleteResult.IsAllowed.Should().BeTrue();
+        legacyResult.IsAllowed.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task WhitespaceOperationKeys_FallBackToLegacyWriteKey()
+    {
+        var authorizer = CreateAuthorizer(
+            writeApiKey: "legacy-key",
+            publishApiKey: "  ",
+            deleteApiKey: "\t",
+            environmentName: Environments.Production);
+        var context = CreateContextWithApiKey("legacy-key");
+
+        var uploadResult = await authorizer.AuthorizeUploadAsync(context, CreatePackageFile());
+        var deleteResult = await authorizer.AuthorizeDeleteAsync(context, "TestPackage", "1.0.0");
+
+        uploadResult.IsAllowed.Should().BeTrue();
+        deleteResult.IsAllowed.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task MissingDeleteKey_FailsClosedOutsideDevelopment()
+    {
+        var authorizer = CreateAuthorizer(
+            publishApiKey: "publish-key",
+            environmentName: Environments.Production);
+
+        var result = await authorizer.AuthorizeDeleteAsync(new DefaultHttpContext(), "TestPackage", "1.0.0");
+
+        result.IsAllowed.Should().BeFalse();
+        result.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+        result.Message.Should().Be(HeaderApiKeyPackageEndpointAuthorizer.DeleteApiKeyNotConfiguredMessage);
+    }
+
+    [Fact]
     public async Task AuthorizeUploadAsync_WithNoConfiguredKeyInDevelopment_AllowsRequest()
     {
         var authorizer = CreateAuthorizer(writeApiKey: null, environmentName: Environments.Development);
@@ -33,7 +151,7 @@ public class HeaderApiKeyPackageEndpointAuthorizerTests
 
         result.IsAllowed.Should().BeFalse();
         result.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
-        result.Message.Should().Be(HeaderApiKeyPackageEndpointAuthorizer.AnonymousWritesDisabledMessage);
+        result.Message.Should().Be(HeaderApiKeyPackageEndpointAuthorizer.PublishApiKeyNotConfiguredMessage);
     }
 
     [Fact]
@@ -46,7 +164,7 @@ public class HeaderApiKeyPackageEndpointAuthorizerTests
 
         result.IsAllowed.Should().BeFalse();
         result.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
-        result.Message.Should().Be(HeaderApiKeyPackageEndpointAuthorizer.AnonymousWritesDisabledMessage);
+        result.Message.Should().Be(HeaderApiKeyPackageEndpointAuthorizer.DeleteApiKeyNotConfiguredMessage);
     }
 
     [Fact]
@@ -86,7 +204,7 @@ public class HeaderApiKeyPackageEndpointAuthorizerTests
 
         result.IsAllowed.Should().BeFalse();
         result.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
-        result.Message.Should().Be(HeaderApiKeyPackageEndpointAuthorizer.InvalidApiKeyMessage);
+        result.Message.Should().Be(HeaderApiKeyPackageEndpointAuthorizer.InvalidPublishApiKeyMessage);
     }
 
     [Fact]
@@ -99,7 +217,7 @@ public class HeaderApiKeyPackageEndpointAuthorizerTests
 
         result.IsAllowed.Should().BeFalse();
         result.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
-        result.Message.Should().Be(HeaderApiKeyPackageEndpointAuthorizer.InvalidApiKeyMessage);
+        result.Message.Should().Be(HeaderApiKeyPackageEndpointAuthorizer.InvalidPublishApiKeyMessage);
     }
 
     [Fact]
@@ -115,7 +233,7 @@ public class HeaderApiKeyPackageEndpointAuthorizerTests
 
         result.IsAllowed.Should().BeFalse();
         result.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
-        result.Message.Should().Be(HeaderApiKeyPackageEndpointAuthorizer.InvalidApiKeyMessage);
+        result.Message.Should().Be(HeaderApiKeyPackageEndpointAuthorizer.InvalidPublishApiKeyMessage);
     }
 
     [Fact]
@@ -130,7 +248,7 @@ public class HeaderApiKeyPackageEndpointAuthorizerTests
 
         result.IsAllowed.Should().BeFalse();
         result.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
-        result.Message.Should().Be(HeaderApiKeyPackageEndpointAuthorizer.InvalidApiKeyMessage);
+        result.Message.Should().Be(HeaderApiKeyPackageEndpointAuthorizer.InvalidPublishApiKeyMessage);
     }
 
     [Fact]
@@ -146,9 +264,11 @@ public class HeaderApiKeyPackageEndpointAuthorizerTests
     }
 
     private static HeaderApiKeyPackageEndpointAuthorizer CreateAuthorizer(
-        string? writeApiKey,
+        string? writeApiKey = null,
         string environmentName = "Development",
-        bool allowAnonymousWrites = false)
+        bool allowAnonymousWrites = false,
+        string? publishApiKey = null,
+        string? deleteApiKey = null)
     {
         var environment = new Mock<IWebHostEnvironment>();
         environment.SetupGet(e => e.EnvironmentName).Returns(environmentName);
@@ -156,8 +276,17 @@ public class HeaderApiKeyPackageEndpointAuthorizerTests
         return new HeaderApiKeyPackageEndpointAuthorizer(Options.Create(new PackageSecurityOptions
         {
             WriteApiKey = writeApiKey,
+            PublishApiKey = publishApiKey,
+            DeleteApiKey = deleteApiKey,
             AllowAnonymousWrites = allowAnonymousWrites
         }), environment.Object);
+    }
+
+    private static DefaultHttpContext CreateContextWithApiKey(string apiKey)
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers[HeaderApiKeyPackageEndpointAuthorizer.ApiKeyHeaderName] = apiKey;
+        return context;
     }
 
     private static IFormFile CreatePackageFile()

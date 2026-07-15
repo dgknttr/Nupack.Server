@@ -72,7 +72,7 @@ GET /v3/registrations/{id}/{version}.json
 PUT /v3/push
 ```
 
-Outside `Development`, configure `PackageSecurity:WriteApiKey` and send `X-NuGet-ApiKey`, or explicitly opt in to anonymous writes with `PackageSecurity:AllowAnonymousWrites=true`.
+Outside `Development`, configure `PackageSecurity:PublishApiKey` and send it as `X-NuGet-ApiKey`, or explicitly opt in to anonymous writes with `PackageSecurity:AllowAnonymousWrites=true`.
 
 ### Delete
 
@@ -80,7 +80,7 @@ Outside `Development`, configure `PackageSecurity:WriteApiKey` and send `X-NuGet
 DELETE /v3/delete/{id}/{version}
 ```
 
-Outside `Development`, configure `PackageSecurity:WriteApiKey` and send `X-NuGet-ApiKey`, or explicitly opt in to anonymous writes with `PackageSecurity:AllowAnonymousWrites=true`.
+Outside `Development`, configure `PackageSecurity:DeleteApiKey` and send it as `X-NuGet-ApiKey`, or explicitly opt in to anonymous writes with `PackageSecurity:AllowAnonymousWrites=true`.
 
 ### Health
 
@@ -109,7 +109,8 @@ GET /health
 ## Notes
 
 - The separate Web app is the official UI.
-- `/ui` and `/frontend` in the API host are legacy demos.
-- Built-in auth is intentionally minimal: a shared `X-NuGet-ApiKey` for `push` and `delete`; blank write auth is open by default only in `Development`.
+- The API host does not serve a UI. Use the separate Web app on port `5004`.
+- Search, read, and download endpoints remain anonymous.
+- Built-in write auth is intentionally minimal: `X-NuGet-ApiKey` uses separate publish and delete credentials. `PackageSecurity:WriteApiKey` is a compatibility-only `0.x` fallback for both operations. Missing applicable credentials are open by default only in `Development`.
 - Rate limiting and advanced admin workflows are not built in.
 - Swagger is available at `/swagger` for the current live surface.

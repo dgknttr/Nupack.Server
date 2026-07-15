@@ -92,13 +92,10 @@ jobs:
         if: always()
         run: docker rm -f minio
 
-  cli-smoke:
-    name: CLI Smoke
+  container-smoke:
+    name: Container Smoke
     runs-on: ubuntu-latest
     needs: [test, s3-provider]
-    env:
-      NUPACK_SMOKE_WRITE_KEY: ci-smoke-key
-      PackageSecurity__WriteApiKey: ci-smoke-key
 
     steps:
       - uses: actions/checkout@v4
@@ -108,48 +105,13 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Restore and build API host
-        run: |
-          dotnet restore
-          dotnet build src/Nupack.Server.Api/Nupack.Server.Api.csproj --no-restore --configuration Release
-
-      - name: Start API host
-        run: |
-          nohup dotnet run --project src/Nupack.Server.Api/Nupack.Server.Api.csproj --no-build --configuration Release --urls "http://127.0.0.1:5003" > api.log 2>&1 &
-
-      - name: Wait for API health
-        run: |
-          for i in {1..30}; do
-            if curl -fsS http://127.0.0.1:5003/health > /dev/null; then
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "API host did not become healthy in time."
-          exit 1
-
-      - name: Add source and push sample package
-        run: |
-          cp NuGet.Config smoke.nuget.config
-          dotnet nuget add source "http://127.0.0.1:5003/v3/index.json" --name "nupack-smoke" --configfile smoke.nuget.config --allow-insecure-connections
-          dotnet nuget push test/TestPackage.1.0.0.nupkg --source "nupack-smoke" --configfile smoke.nuget.config --api-key "$NUPACK_SMOKE_WRITE_KEY" --skip-duplicate --allow-insecure-connections
-
-      - name: Verify search endpoint
-        run: |
-          curl -fsS "http://127.0.0.1:5003/v3/search?q=TestPackage&take=5"
-
-      - name: Restore sample project from local feed
-        run: |
-          dotnet restore test-project/test-project.csproj --configfile test-project/nuget.config
-
-      - name: Dump API log on failure
-        if: failure()
-        run: cat api.log
+      - name: Verify container push, restore, and persistence
+        run: bash tests/smoke/container-smoke.sh
 
   build-and-push:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
-    needs: [test, s3-provider, cli-smoke]
+    needs: [test, s3-provider, container-smoke]
     if: github.ref == 'refs/heads/main'
     permissions:
       contents: read

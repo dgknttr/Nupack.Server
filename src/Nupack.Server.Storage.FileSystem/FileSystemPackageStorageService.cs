@@ -31,6 +31,28 @@ public sealed class FileSystemPackageStorageService : IPackageStorageService
         InitializeCache();
     }
 
+    public async Task CheckHealthAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var probePath = Path.Combine(_packagesPath, $".nupack-health-{Guid.NewGuid():N}.probe");
+
+        try
+        {
+            await using var probe = new FileStream(
+                probePath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                bufferSize: 1,
+                FileOptions.Asynchronous | FileOptions.DeleteOnClose);
+            await probe.FlushAsync(cancellationToken);
+        }
+        finally
+        {
+            File.Delete(probePath);
+        }
+    }
+
     public async Task<PackageMetadata> StorePackageAsync(PackageUploadContent package, CancellationToken cancellationToken = default)
     {
         var metadata = await _metadataReader.ReadMetadataAsync(package, cancellationToken);
@@ -167,5 +189,4 @@ public sealed class FileSystemPackageStorageService : IPackageStorageService
     private static string BuildPackageKey(string id, string version)
         => $"{id}:{version}";
 }
-
 

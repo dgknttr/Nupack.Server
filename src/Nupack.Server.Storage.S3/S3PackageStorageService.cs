@@ -34,6 +34,16 @@ public sealed class S3PackageStorageService : IPackageStorageService
         InitializeCacheAsync().GetAwaiter().GetResult();
     }
 
+    public async Task CheckHealthAsync(CancellationToken cancellationToken = default)
+    {
+        await _s3Client.ListObjectsV2Async(new ListObjectsV2Request
+        {
+            BucketName = _bucketName,
+            Prefix = _prefix,
+            MaxKeys = 1
+        }, cancellationToken);
+    }
+
     public async Task<PackageMetadata> StorePackageAsync(PackageUploadContent package, CancellationToken cancellationToken = default)
     {
         var metadata = await _metadataReader.ReadMetadataAsync(package, cancellationToken);

@@ -11,7 +11,7 @@ namespace Nupack.Server.Web.Pages;
 public class UploadModel : PageModel
 {
     private const string ApiKeyHeaderName = "X-NuGet-ApiKey";
-    private const string UnauthorizedUploadMessage = "A valid X-NuGet-ApiKey header is required for package write operations.";
+    private const string UnauthorizedUploadMessage = "A valid X-NuGet-ApiKey header is required to publish packages.";
 
     private readonly ILogger<UploadModel> _logger;
     private readonly IConfiguration _configuration;

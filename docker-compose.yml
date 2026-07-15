@@ -1,15 +1,11 @@
-version: '3.8'
-
 services:
   nupack-server:
     build: .
     ports:
       - "5003:5003"
-      - "5001:5001"
-      - "5002:5002"
       - "5004:5004"
     volumes:
-      - ./data:/app/data
+      - nupack-data:/app/data
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - Branding__ProductName=Nupack Server
@@ -17,6 +13,9 @@ services:
       - Branding__RepositoryTitle=Nupack Private Repository
       - Branding__NugetSourceName=Nupack Server
       - Branding__NugetSourceUrl=http://localhost:5003/v3/index.json
+      - NuGetServer__BaseUrl=http://localhost:5003
+      - PackageSecurity__PublishApiKey=${NUPACK_PUBLISH_API_KEY:-}
+      - PackageSecurity__DeleteApiKey=${NUPACK_DELETE_API_KEY:-}
       - PackageStorage__Provider=${PACKAGE_STORAGE_PROVIDER:-FileSystem}
       - PackageStorage__FileSystem__BasePath=/app/data/packages
       - PackageStorage__S3__BucketName=${PACKAGE_STORAGE_S3_BUCKET:-nupack-packages}
@@ -28,7 +27,7 @@ services:
       - PackageStorage__S3__Prefix=${PACKAGE_STORAGE_S3_PREFIX:-packages/}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5003/health"]
+      test: ["CMD-SHELL", "curl --fail --silent --show-error http://localhost:5003/health/ready > /dev/null && curl --fail --silent --show-error http://localhost:5004/health/live > /dev/null"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -45,7 +44,7 @@ services:
       - MINIO_ROOT_USER=${PACKAGE_STORAGE_S3_ACCESS_KEY:-minioadmin}
       - MINIO_ROOT_PASSWORD=${PACKAGE_STORAGE_S3_SECRET_KEY:-minioadmin}
     volumes:
-      - ./data/minio:/data
+      - minio-data:/data
 
   minio-init:
     image: minio/mc
@@ -58,3 +57,7 @@ services:
       mc mb -p local/${PACKAGE_STORAGE_S3_BUCKET:-nupack-packages};
       exit 0;
       "
+
+volumes:
+  nupack-data:
+  minio-data:

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -8,9 +9,12 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Moq;
 using Nupack.Server.Api.Models.V3;
 using Nupack.Server.Api.Services;
+using Nupack.Server.Storage.Services;
 using Xunit;
 
 namespace Nupack.Server.Tests.Integration;
@@ -143,17 +147,89 @@ public class ProtocolIntegrationTests
         registrationLeaf.PackageContent.Should().Contain("/v3-flatcontainer/testpackage/1.0.0/testpackage.1.0.0.nupkg");
     }
 
-    [Fact]
-    public async Task HealthEndpoint_ReturnsHealthyPayload()
+    [Theory]
+    [InlineData("/health/live")]
+    [InlineData("/health/ready")]
+    [InlineData("/health")]
+    public async Task HealthEndpoints_WhenStorageIsHealthy_ReturnStableJson(string path)
     {
         using var server = new TestServerContext(seedPackage: false);
 
-        var response = await server.Client.GetAsync("/health");
+        var response = await server.Client.GetAsync(path);
+        var payload = await ReadHealthPayloadAsync(response);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var payload = await response.Content.ReadAsStringAsync();
-        payload.Should().Contain("healthy");
-        payload.Should().Contain("timestamp");
+        response.Content.Headers.ContentType?.MediaType.Should().Be("application/json");
+        payload.Status.Should().Be("healthy");
+        payload.Timestamp.Offset.Should().Be(TimeSpan.Zero);
+    }
+
+    [Fact]
+    public async Task HealthEndpoints_WhenStorageFails_ReadinessFailsButLivenessStaysHealthy()
+    {
+        var storage = new Mock<IPackageStorageService>();
+        storage.Setup(value => value.GetTotalPackageCountAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+        storage.Setup(value => value.CheckHealthAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("SecretKey=must-not-leak"));
+        using var server = new TestServerContext(seedPackage: false, configureServices: services =>
+        {
+            services.RemoveAll<IPackageStorageService>();
+            services.AddSingleton(storage.Object);
+        });
+
+        var liveResponse = await server.Client.GetAsync("/health/live");
+        var readyResponse = await server.Client.GetAsync("/health/ready");
+        var aliasResponse = await server.Client.GetAsync("/health");
+        var readyPayload = await ReadHealthPayloadAsync(readyResponse);
+
+        liveResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        readyResponse.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
+        aliasResponse.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
+        readyPayload.Status.Should().Be("unhealthy");
+        readyPayload.Timestamp.Offset.Should().Be(TimeSpan.Zero);
+        readyPayload.RawJson.Should().NotContain("must-not-leak");
+        storage.Verify(value => value.CheckHealthAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task Readiness_WhenStorageProbeHangs_TimesOutAndCancelsProvider()
+    {
+        var cancellationObserved = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var storage = new Mock<IPackageStorageService>();
+        storage.Setup(value => value.GetTotalPackageCountAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+        storage.Setup(value => value.CheckHealthAsync(It.IsAny<CancellationToken>()))
+            .Returns(async (CancellationToken cancellationToken) =>
+            {
+                try
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                }
+                finally
+                {
+                    cancellationObserved.TrySetResult(cancellationToken.IsCancellationRequested);
+                }
+            });
+        using var server = new TestServerContext(
+            seedPackage: false,
+            configureServices: services =>
+            {
+                services.RemoveAll<IPackageStorageService>();
+                services.AddSingleton(storage.Object);
+            },
+            readinessTimeoutSeconds: "1");
+        using var callerTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var stopwatch = Stopwatch.StartNew();
+
+        var response = await server.Client.GetAsync("/health/ready", callerTimeout.Token);
+        var payload = await ReadHealthPayloadAsync(response);
+
+        stopwatch.Stop();
+        response.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
+        payload.Status.Should().Be("unhealthy");
+        stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(3));
+        (await cancellationObserved.Task.WaitAsync(TimeSpan.FromSeconds(1))).Should().BeTrue();
     }
 
     [Fact]
@@ -183,7 +259,7 @@ public class ProtocolIntegrationTests
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
         var payload = await response.Content.ReadAsStringAsync();
-        payload.Should().Contain(HeaderApiKeyPackageEndpointAuthorizer.InvalidApiKeyMessage);
+        payload.Should().Contain(HeaderApiKeyPackageEndpointAuthorizer.InvalidPublishApiKeyMessage);
     }
 
     [Fact]
@@ -197,7 +273,7 @@ public class ProtocolIntegrationTests
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         var payload = await response.Content.ReadAsStringAsync();
-        payload.Should().Contain(HeaderApiKeyPackageEndpointAuthorizer.InvalidApiKeyMessage);
+        payload.Should().Contain(HeaderApiKeyPackageEndpointAuthorizer.InvalidPublishApiKeyMessage);
     }
 
     [Fact]
@@ -283,7 +359,7 @@ public class ProtocolIntegrationTests
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         var payload = await response.Content.ReadAsStringAsync();
-        payload.Should().Contain(HeaderApiKeyPackageEndpointAuthorizer.InvalidApiKeyMessage);
+        payload.Should().Contain(HeaderApiKeyPackageEndpointAuthorizer.InvalidDeleteApiKeyMessage);
     }
 
     [Fact]
@@ -343,6 +419,18 @@ public class ProtocolIntegrationTests
         return result!;
     }
 
+    private static async Task<(string Status, DateTimeOffset Timestamp, string RawJson)> ReadHealthPayloadAsync(HttpResponseMessage response)
+    {
+        var rawJson = await response.Content.ReadAsStringAsync();
+        using var document = JsonDocument.Parse(rawJson);
+        var root = document.RootElement;
+        var status = root.GetProperty("status").GetString();
+        var timestamp = root.GetProperty("timestamp").GetDateTimeOffset();
+
+        status.Should().NotBeNull();
+        return (status!, timestamp, rawJson);
+    }
+
     private static async Task<MultipartFormDataContent> CreatePackageUploadContentAsync(string packagePath)
     {
         var content = new MultipartFormDataContent();
@@ -365,7 +453,12 @@ public class ProtocolIntegrationTests
     {
         private readonly string _storagePath;
 
-        public TestServerContext(bool seedPackage, string? writeApiKey = null, Action<IServiceCollection>? configureServices = null, long? maxPackageSizeBytes = null)
+        public TestServerContext(
+            bool seedPackage,
+            string? writeApiKey = null,
+            Action<IServiceCollection>? configureServices = null,
+            long? maxPackageSizeBytes = null,
+            string? readinessTimeoutSeconds = null)
         {
             _storagePath = Path.Combine(Path.GetTempPath(), "Nupack.Server.Tests", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_storagePath);
@@ -380,6 +473,11 @@ public class ProtocolIntegrationTests
                 .WithWebHostBuilder(builder =>
                 {
                     builder.UseEnvironment(Environments.Development);
+                    if (!string.IsNullOrWhiteSpace(readinessTimeoutSeconds))
+                    {
+                        builder.UseSetting("PackageHealth:ReadinessTimeoutSeconds", readinessTimeoutSeconds);
+                    }
+
                     builder.ConfigureAppConfiguration((_, config) =>
                     {
                         config.AddInMemoryCollection(new Dictionary<string, string?>

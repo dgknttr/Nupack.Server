@@ -128,14 +128,14 @@ paths:
           required: false
           schema:
             type: string
-          description: Required outside Development unless PackageSecurity:AllowAnonymousWrites is enabled. Must match PackageSecurity:WriteApiKey when configured.
+          description: Required outside Development unless PackageSecurity:AllowAnonymousWrites is enabled. Must match PackageSecurity:PublishApiKey when configured; PackageSecurity:WriteApiKey is a compatibility-only fallback.
       responses:
         '201':
           description: Package uploaded successfully
         '400':
           description: Invalid package or duplicate version
         '401':
-          description: Write API key missing or invalid
+          description: Publish API key missing or invalid
   /v3/delete/{id}/{version}:
     delete:
       summary: Delete a package version
@@ -145,17 +145,75 @@ paths:
           required: false
           schema:
             type: string
-          description: Required outside Development unless PackageSecurity:AllowAnonymousWrites is enabled. Must match PackageSecurity:WriteApiKey when configured.
+          description: Required outside Development unless PackageSecurity:AllowAnonymousWrites is enabled. Must match PackageSecurity:DeleteApiKey when configured; PackageSecurity:WriteApiKey is a compatibility-only fallback.
       responses:
         '204':
           description: Package deleted successfully
         '401':
-          description: Write API key missing or invalid
+          description: Delete API key missing or invalid
         '404':
           description: Package version not found
   /health:
     get:
-      summary: Get a simple health payload
+      summary: Check readiness (compatibility alias)
+      description: Probes the selected package storage provider. This is an alias for `/health/ready`.
       responses:
         '200':
-          description: Server is healthy
+          description: Package storage is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Package storage is unavailable or the readiness probe timed out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /health/live:
+    get:
+      summary: Check process liveness
+      description: Reports whether the API process can serve requests without probing package storage.
+      responses:
+        '200':
+          description: API process is live
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /health/ready:
+    get:
+      summary: Check package storage readiness
+      description: Probes the selected filesystem or S3-compatible package storage provider.
+      responses:
+        '200':
+          description: Package storage is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Package storage is unavailable or the readiness probe timed out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - timestamp
+      properties:
+        status:
+          type: string
+          enum:
+            - healthy
+            - unhealthy
+        timestamp:
+          type: string
+          format: date-time
+      example:
+        status: healthy
+        timestamp: '2026-07-15T09:30:00Z'

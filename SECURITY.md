@@ -10,8 +10,10 @@ Security fixes are applied to the latest `0.x` release line in this repository. 
 
 What the repository does today:
 - validates uploaded files as `.nupkg`
-- supports a shared `X-NuGet-ApiKey` for `push` and `delete` when `PackageSecurity:WriteApiKey` is configured
-- allows anonymous writes by default only in `Development`; outside `Development`, blank write auth fails closed unless `PackageSecurity:AllowAnonymousWrites` is explicitly enabled
+- keeps package search, read, and download anonymous
+- supports separate `PackageSecurity:PublishApiKey` and `PackageSecurity:DeleteApiKey` credentials through `X-NuGet-ApiKey`
+- retains `PackageSecurity:WriteApiKey` only as a `0.x` compatibility fallback for both operations
+- allows an operation with no applicable key to be anonymous by default only in `Development`; outside `Development`, missing credentials fail closed unless `PackageSecurity:AllowAnonymousWrites` is explicitly enabled
 - limits upload size in the Web UI
 - avoids exposing detailed server errors in normal API responses
 - ships container and CI security scanning workflows
@@ -29,7 +31,7 @@ Because of that, this server should still be treated as a trusted-environment co
 
 If you deploy this outside a local or trusted network, add:
 - TLS termination
-- a secret store or environment variable for `PackageSecurity__WriteApiKey`
+- a secret store or the `PackageSecurity__PublishApiKey` and `PackageSecurity__DeleteApiKey` environment variables, with the delete credential distributed more narrowly
 - reverse proxy authentication or your own stronger auth layer when appropriate
 - network allowlists or VPN boundaries
 - logging and monitoring

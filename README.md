@@ -1,12 +1,15 @@
-# Nupack Server
+# Nupack Server — Self-Hosted NuGet V3 Feed
+
+**Nupack Server is an open-source, lightweight, self-hosted NuGet V3 package repository for private and internal .NET packages.**
 
 ![CI](https://github.com/dgknttr/Nupack.Server/actions/workflows/ci.yml/badge.svg)
 ![Security](https://github.com/dgknttr/Nupack.Server/actions/workflows/security.yml/badge.svg)
 ![CodeQL](https://github.com/dgknttr/Nupack.Server/actions/workflows/codeql.yml/badge.svg)
+[![License: MIT](https://img.shields.io/github/license/dgknttr/Nupack.Server)](LICENSE)
 
-Nupack Server is a lightweight, self-hosted **NuGet V3 server reference implementation** built with ASP.NET Core 9.
+Built with ASP.NET Core 9, Nupack works with standard NuGet clients and commands such as `dotnet restore` and `dotnet nuget push`. Run it with Docker and store packages on the local filesystem, Amazon S3, MinIO, or another S3-compatible object store.
 
-**30-second pitch:** fork it, run it, study it, or adapt it into your own self-hosted NuGet feed.
+The default model keeps package search and download anonymous while protecting publish and delete operations with separate API keys. You can run a small company-controlled feed as-is or fork and adapt the implementation to your environment.
 
 It is designed to be:
 - easy to fork
@@ -14,7 +17,7 @@ It is designed to be:
 - easy to customize
 - honest about what is supported today
 
-This repository is **not** trying to compete with full package platforms. The goal is a solid starter kit for teams, side projects, labs, and contributors who want a hackable NuGet feed they can run, study, and evolve.
+This repository is **not** trying to compete with full package platforms. The goal is a solid starter kit for teams, side projects, labs, and contributors who want a hackable NuGet feed they can run, study, and evolve. Nupack implements the server side of NuGet V3; it does not replace the NuGet client, the `.nupkg` format, or standard commands such as `dotnet restore` and `dotnet nuget push`.
 
 ## Quick Paths
 
@@ -22,10 +25,13 @@ This repository is **not** trying to compete with full package platforms. The go
 - Want to run it with containers: jump to [Docker-First Run](#docker-first-run)
 - Want object storage: jump to [Package Storage](#package-storage)
 - Want to contribute: start with [CONTRIBUTING.md](CONTRIBUTING.md)
+- Want to understand the product direction: read the [needs analysis](docs/needs-analysis.md) and [roadmap](docs/roadmap.md)
 
 ## Why This Exists
 
-Nupack Server exists for teams and contributors who want a small, readable NuGet V3 server they can actually fork and reshape, without signing up for a larger package platform.
+Nupack Server exists first for .NET teams that need to publish and restore their own company packages without adopting a larger package platform. It also serves contributors who want a small, readable NuGet V3 server they can fork and reshape.
+
+The default internal-feed model treats the company network, VPN, or reverse proxy as the read boundary: package search, metadata, and downloads are anonymous, while publish and delete are authenticated. The `0.1` direction separates publish and delete credentials because those operations carry different risks. Authentication for reads can be added at a reverse proxy or through customization, but it is optional and is not a `0.1` requirement.
 
 ## Who This Is For
 
@@ -50,7 +56,7 @@ The solution contains two app hosts and three storage projects:
 - `src/Nupack.Server.Storage.FileSystem`: default filesystem provider
 - `src/Nupack.Server.Storage.S3`: S3-compatible provider for AWS S3, MinIO, and similar endpoints
 
-The API also contains `/ui` and `/frontend` demo routes, but those are **legacy demo surfaces** and not part of the official supported UI story.
+The separate Razor Pages application is the only supported UI. In the container it is available on port `5004`; the API host does not serve a UI.
 
 Package metadata is still built conservatively by scanning stored `.nupkg` files or objects at startup and caching the results in memory.
 
@@ -65,12 +71,12 @@ Package metadata is still built conservatively by scanning stored `.nupkg` files
 | Registration index/page/leaf | Supported | Simplified registration model |
 | Package push | Supported | `PUT /v3/push` |
 | Package delete | Supported | `DELETE /v3/delete/{id}/{version}` |
-| Health endpoint | Supported | `/health` |
+| Health endpoints | Supported | `/health/live`; storage-backed `/health/ready`; `/health` readiness alias |
 | Web browse/search/upload | Supported | Separate Web app is the official UI |
 | Nuspec endpoint | Supported | Returns extracted `.nuspec` XML |
 | Storage providers | Supported | `FileSystem` and `S3` are built in |
 | SemVer and prerelease handling | Partial | Core flows work; coverage is still growing |
-| Authentication | Partial | Blank write auth is open by default only in `Development`; outside `Development`, `push` and `delete` require `PackageSecurity:WriteApiKey` or explicit `PackageSecurity:AllowAnonymousWrites=true` |
+| Authentication | Partial | Search/read/download are anonymous. Outside `Development`, `push` and `delete` use separate API keys unless `PackageSecurity:AllowAnonymousWrites=true` is explicitly enabled |
 | Unlist | Not supported | |
 | Download stats | Not supported | UI treats stats as unavailable |
 
@@ -123,10 +129,10 @@ dotnet nuget add source "http://localhost:5003/v3/index.json" --name "Nupack Ser
 dotnet nuget push path/to/YourPackage.1.0.0.nupkg --source "Nupack Server"
 ```
 
-If your deployment configures a shared write key, include it on push:
+If your deployment configures a publish key, include it on push:
 
 ```bash
-dotnet nuget push path/to/YourPackage.1.0.0.nupkg --source "Nupack Server" --api-key "your-write-key"
+dotnet nuget push path/to/YourPackage.1.0.0.nupkg --source "Nupack Server" --api-key "your-publish-key"
 ```
 
 ### 5. Browse the feed
@@ -140,20 +146,38 @@ dotnet nuget push path/to/YourPackage.1.0.0.nupkg --source "Nupack Server" --api
 Filesystem remains the default compose path:
 
 ```bash
+NUPACK_PUBLISH_API_KEY='replace-with-a-secret' \
+NUPACK_DELETE_API_KEY='replace-with-a-different-secret' \
 docker compose up --build
 ```
 
 S3-compatible local development uses MinIO through an optional profile:
 
 ```bash
+NUPACK_PUBLISH_API_KEY='replace-with-a-secret' \
+NUPACK_DELETE_API_KEY='replace-with-a-different-secret' \
 PACKAGE_STORAGE_PROVIDER=S3 docker compose --profile s3 up --build
 ```
+
+The compose file contains no default publish or delete secret. If either value is omitted in Production, that operation fails closed. Search, metadata, and package downloads remain anonymous.
+
+Compose stores filesystem packages in the Docker-managed `nupack-data` volume by default. This preserves the non-root container user's ownership on a clean first run. A development deployment may replace it with a host bind mount, but the host directory must already be writable by the image's `appuser`; bind mounts are intentionally not the reliable default.
 
 Default ports:
 - API: `http://localhost:5003`
 - Web UI: `http://localhost:5004`
 - MinIO API when profile enabled: `http://localhost:9000`
 - MinIO console when profile enabled: `http://localhost:9001`
+
+The application container serves HTTP on ports `5003` and `5004` only. Terminate TLS at a reverse proxy and forward traffic to those internal HTTP endpoints; the image does not contain or manage production certificates.
+
+The repository's container smoke test builds the real image, publishes `TestPackage`, restores it into an empty NuGet cache, restarts the container with the same filesystem volume, and restores again into a second empty cache. This verifies that the package is served by Nupack and survives a restart independently of client caches:
+
+```bash
+bash tests/smoke/container-smoke.sh
+```
+
+Docker, `dotnet`, and `curl` are required. Set `SKIP_BUILD=1 IMAGE_TAG=<local-image>` to exercise an existing image.
 
 ## Package Storage
 
@@ -191,19 +215,22 @@ The legacy shorthand still works for existing filesystem installs:
 
 See [package storage configuration](docs/package-storage-configuration.md) for more examples.
 
-Optional write auth for internal deployments can be enabled without changing read endpoints:
+Storage readiness probes have a five-second timeout by default. Configure an integer from `1` through `300` with `PackageHealth:ReadinessTimeoutSeconds`, or set the environment variable `PackageHealth__ReadinessTimeoutSeconds`. Missing, malformed, non-positive, or greater-than-300 values safely fall back to five seconds.
+
+State-changing operations can use separate credentials without changing anonymous search, read, or download endpoints:
 
 ```json
 {
   "PackageSecurity": {
-    "WriteApiKey": "set-via-env-or-secret-store"
+    "PublishApiKey": "set-publish-key-via-env-or-secret-store",
+    "DeleteApiKey": "set-delete-key-via-env-or-secret-store"
   }
 }
 ```
 
-Prefer the environment variable `PackageSecurity__WriteApiKey` or a secret store over committed configuration values.
+Prefer the environment variables `PackageSecurity__PublishApiKey` and `PackageSecurity__DeleteApiKey`, or a secret store, over committed configuration values. Give the delete key only to maintainers that need package removal access.
 
-When `PackageSecurity:WriteApiKey` is empty, write endpoints stay open by default only in the `Development` environment for local reference use. Outside `Development`, missing write auth fails closed with `401 Unauthorized` unless you intentionally set `PackageSecurity:AllowAnonymousWrites` to `true`.
+`PackageSecurity:WriteApiKey` remains a compatibility-only `0.x` fallback for both operations. New deployments should configure the separate keys. When an applicable operation-specific key and the legacy fallback are both empty, that operation stays open by default only in `Development`. Outside `Development`, it fails closed with `401 Unauthorized` unless you intentionally set `PackageSecurity:AllowAnonymousWrites` to `true`.
 
 ## Architecture at a Glance
 
@@ -258,17 +285,13 @@ This repository also follows [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## Security
 
-The current release line supports a shared `X-NuGet-ApiKey` for write operations when `PackageSecurity:WriteApiKey` is configured. If you expose this server outside a trusted environment, configure a write key or explicitly opt in to anonymous writes with `PackageSecurity:AllowAnonymousWrites`, and still use TLS, network controls, and stronger authentication layers where appropriate.
+The current release line accepts `X-NuGet-ApiKey` with separate `PackageSecurity:PublishApiKey` and `PackageSecurity:DeleteApiKey` credentials. Search, read, and download remain anonymous. `PackageSecurity:WriteApiKey` is a compatibility-only fallback for existing `0.x` deployments. If you expose this server outside a trusted environment, configure the operation-specific keys or explicitly opt in to anonymous writes with `PackageSecurity:AllowAnonymousWrites`, and still use TLS, network controls, and stronger authentication layers where appropriate. The container intentionally serves HTTP only; terminate TLS at a reverse proxy.
 
 See [SECURITY.md](SECURITY.md) for the current policy and deployment guidance.
 
 ## Roadmap
 
-The roadmap is phased:
-- Phase 1: trust reset, docs honesty, onboarding, support matrix
-- Phase 2: protocol correctness and smoke coverage
-- Phase 3: extension seams and customization guidance
-- Phase 4: package extraction for embedding
+The roadmap is release-gated, beginning with a trustworthy `0.1` deployment and then package integrity, durable operations, and stable extension seams.
 
 See [docs/roadmap.md](docs/roadmap.md) for details.
 
