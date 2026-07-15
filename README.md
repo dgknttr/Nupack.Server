@@ -1,12 +1,15 @@
-# Nupack Server
+# Nupack Server — Self-Hosted NuGet V3 Feed
+
+**Nupack Server is an open-source, lightweight, self-hosted NuGet V3 package repository for private and internal .NET packages.**
 
 ![CI](https://github.com/dgknttr/Nupack.Server/actions/workflows/ci.yml/badge.svg)
 ![Security](https://github.com/dgknttr/Nupack.Server/actions/workflows/security.yml/badge.svg)
 ![CodeQL](https://github.com/dgknttr/Nupack.Server/actions/workflows/codeql.yml/badge.svg)
+[![License: MIT](https://img.shields.io/github/license/dgknttr/Nupack.Server)](LICENSE)
 
-Nupack Server is a lightweight, self-hosted **NuGet V3 server and feed** built with ASP.NET Core 9. Its primary use case is publishing a company's own internal `.nupkg` packages so developers and CI jobs can restore them from infrastructure the company controls.
+Built with ASP.NET Core 9, Nupack works with standard NuGet clients and commands such as `dotnet restore` and `dotnet nuget push`. Run it with Docker and store packages on the local filesystem, Amazon S3, MinIO, or another S3-compatible object store.
 
-**30-second pitch:** run a small internal feed with anonymous search/download and authenticated publishing, or fork and adapt the implementation to your environment.
+The default model keeps package search and download anonymous while protecting publish and delete operations with separate API keys. You can run a small company-controlled feed as-is or fork and adapt the implementation to your environment.
 
 It is designed to be:
 - easy to fork
