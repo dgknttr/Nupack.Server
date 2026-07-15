@@ -59,6 +59,35 @@ published_port() {
     printf '%s\n' "${binding##*:}"
 }
 
+refresh_endpoint_urls() {
+    API_PORT="$(published_port 5003)"
+    WEB_PORT="$(published_port 5004)"
+    API_URL="http://127.0.0.1:${API_PORT}"
+    WEB_URL="http://127.0.0.1:${WEB_PORT}"
+}
+
+write_nuget_config() {
+    cat >"${TEMP_DIR}/nuget.config" <<EOF
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <clear />
+    <add key="Nupack" value="${API_URL}/v3/index.json" allowInsecureConnections="true" />
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" protocolVersion="3" />
+  </packageSources>
+  <packageSourceMapping>
+    <packageSource key="Nupack">
+      <package pattern="TestPackage" />
+    </packageSource>
+    <packageSource key="nuget.org">
+      <!-- Exact package IDs have precedence over the catch-all pattern. -->
+      <package pattern="*" />
+    </packageSource>
+  </packageSourceMapping>
+</configuration>
+EOF
+}
+
 package_download_count() {
     local container_logs
 
@@ -141,33 +170,11 @@ docker run --detach \
     "${IMAGE_TAG}" >/dev/null
 CONTAINER_STARTED=1
 
-API_PORT="$(published_port 5003)"
-WEB_PORT="$(published_port 5004)"
-API_URL="http://127.0.0.1:${API_PORT}"
-WEB_URL="http://127.0.0.1:${WEB_PORT}"
+refresh_endpoint_urls
 
 wait_for_endpoint "API readiness" "${API_URL}/health/ready"
 wait_for_endpoint "Web liveness" "${WEB_URL}/health/live"
-
-cat >"${TEMP_DIR}/nuget.config" <<EOF
-<?xml version="1.0" encoding="utf-8"?>
-<configuration>
-  <packageSources>
-    <clear />
-    <add key="Nupack" value="${API_URL}/v3/index.json" allowInsecureConnections="true" />
-    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" protocolVersion="3" />
-  </packageSources>
-  <packageSourceMapping>
-    <packageSource key="Nupack">
-      <package pattern="TestPackage" />
-    </packageSource>
-    <packageSource key="nuget.org">
-      <!-- Exact package IDs have precedence over the catch-all pattern. -->
-      <package pattern="*" />
-    </packageSource>
-  </packageSourceMapping>
-</configuration>
-EOF
+write_nuget_config
 
 echo "Publishing TestPackage through the containerized NuGet endpoint."
 dotnet nuget push "${ROOT_DIR}/test/TestPackage.1.0.0.nupkg" \
@@ -183,8 +190,10 @@ restore_consumer \
 
 echo "Restarting the same container with the same persistent volume."
 docker restart "${CONTAINER_NAME}" >/dev/null
+refresh_endpoint_urls
 wait_for_endpoint "API readiness after restart" "${API_URL}/health/ready"
 wait_for_endpoint "Web liveness after restart" "${WEB_URL}/health/live"
+write_nuget_config
 
 echo "Restoring with a second empty package cache after restart."
 restore_consumer \
