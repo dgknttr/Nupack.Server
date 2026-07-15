@@ -158,6 +158,8 @@ PACKAGE_STORAGE_PROVIDER=S3 docker compose --profile s3 up --build
 
 The compose file contains no default publish or delete secret. If either value is omitted in Production, that operation fails closed. Search, metadata, and package downloads remain anonymous.
 
+Compose stores filesystem packages in the Docker-managed `nupack-data` volume by default. This preserves the non-root container user's ownership on a clean first run. A development deployment may replace it with a host bind mount, but the host directory must already be writable by the image's `appuser`; bind mounts are intentionally not the reliable default.
+
 Default ports:
 - API: `http://localhost:5003`
 - Web UI: `http://localhost:5004`

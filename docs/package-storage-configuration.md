@@ -83,10 +83,14 @@ This is preserved so existing installs do not break, but new docs and examples s
 ```yaml
 services:
   nupack-server:
+    volumes:
+      - nupack-data:/app/data
     environment:
       - PackageStorage__Provider=FileSystem
       - PackageStorage__FileSystem__BasePath=/app/data/packages
 ```
+
+The repository compose file declares `nupack-data` as a Docker-managed named volume. This keeps `/app/data` writable by the image's non-root `appuser` on first run. If a development override replaces it with a host bind mount, create that directory with permissions that allow the container user to write; production deployments should keep a managed volume or an equivalently provisioned persistent volume.
 
 ### MinIO-backed run
 

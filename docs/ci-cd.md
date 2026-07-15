@@ -13,6 +13,7 @@ The CI/CD integration allows you to:
 > Note
 > Configure `PackageSecurity:PublishApiKey` for CI publishing. `dotnet nuget push --api-key` maps that credential to the `X-NuGet-ApiKey` header. Configure a separate `PackageSecurity:DeleteApiKey` only for maintenance workflows that delete packages; publishing jobs should not receive it.
 > `PackageSecurity:WriteApiKey` is a 0.x compatibility fallback for both operations, not the recommended setup. Missing applicable credentials are allowed by default only in `Development`; production-like environments must configure the operation-specific key or explicitly set `PackageSecurity:AllowAnonymousWrites=true`. Search, read, and download remain anonymous.
+
 ## GitHub Actions
 
 ### Basic Workflow
@@ -84,12 +85,7 @@ jobs:
         dotnet-version: '8.0.x'
     
     - name: Add NuGet source
-      run: |
-        dotnet nuget add source ${{ env.NUGET_SERVER_URL }} \
-          --name "Nupack Server" \
-          --username "github-actions" \
-          --password ${{ env.NUGET_API_KEY }} \
-          --store-password-in-clear-text
+      run: dotnet nuget add source "$NUGET_SERVER_URL" --name "Nupack Server"
     
     - name: Push packages
       run: |
@@ -97,7 +93,7 @@ jobs:
           echo "Publishing $package"
           dotnet nuget push "$package" \
             --source "Nupack Server" \
-            --api-key ${{ env.NUGET_API_KEY }} \
+            --api-key "$NUGET_API_KEY" \
             --skip-duplicate
         done
 ```
@@ -160,10 +156,13 @@ jobs:
     
     - name: Publish to Nupack Server
       if: github.ref == 'refs/heads/main'
+      env:
+        NUGET_SERVER_URL: ${{ secrets.NUGET_SERVER_URL }}
+        NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
       run: |
         dotnet nuget push ./packages/*.nupkg \
-          --source ${{ secrets.NUGET_SERVER_URL }} \
-          --api-key ${{ secrets.NUGET_API_KEY }} \
+          --source "$NUGET_SERVER_URL" \
+          --api-key "$NUGET_API_KEY" \
           --skip-duplicate
 ```
 
@@ -254,20 +253,19 @@ stages:
               artifactName: 'nuget-packages'
               downloadPath: '$(System.ArtifactsDirectory)'
           
-          - task: DotNetCoreCLI@2
-            displayName: 'Add NuGet source'
-            inputs:
-              command: 'custom'
-              custom: 'nuget'
-              arguments: 'add source $(nugetServerUrl) --name "Nupack Server"'
-          
-          - task: DotNetCoreCLI@2
+          - task: Bash@3
             displayName: 'Push packages'
             inputs:
-              command: 'push'
-              packagesToPush: '$(System.ArtifactsDirectory)/nuget-packages/*.nupkg'
-              nuGetFeedType: 'external'
-              publishFeedCredentials: 'Nupack-Server'
+              targetType: 'inline'
+              script: |
+                for package in "$(System.ArtifactsDirectory)"/nuget-packages/*.nupkg; do
+                  dotnet nuget push "$package" \
+                    --source "$(nugetServerUrl)" \
+                    --api-key "$NUGET_API_KEY" \
+                    --skip-duplicate
+                done
+            env:
+              NUGET_API_KEY: $(NUGET_API_KEY)
 ```
 
 ## GitLab CI/CD
@@ -337,7 +335,7 @@ deploy:
         echo "Publishing $package"
         dotnet nuget push "$package" \
           --source "Nupack Server" \
-          --api-key $NUGET_API_KEY \
+          --api-key "$NUGET_API_KEY" \
           --skip-duplicate
       done
   only:
@@ -431,7 +429,7 @@ pipeline {
                         echo "Publishing $package"
                         dotnet nuget push "$package" \
                             --source "Nupack Server" \
-                            --api-key ${NUGET_API_KEY} \
+                            --api-key "${NUGET_API_KEY}" \
                             --skip-duplicate
                     done
                 '''
@@ -534,7 +532,7 @@ Do not expose `PackageSecurity:DeleteApiKey` to ordinary publishing workflows. S
 
 1. **Enable Verbose Logging**:
    ```bash
-   dotnet nuget push package.nupkg --source "source" --verbosity detailed
+   dotnet nuget push package.nupkg --source "source" --api-key "$NUGET_API_KEY" --verbosity detailed
    ```
 
 2. **Check Package Contents**:
@@ -563,9 +561,11 @@ For solutions with multiple projects:
     done
 
 - name: Push all packages
+  env:
+    NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
   run: |
     for package in packages/*.nupkg; do
-      dotnet nuget push "$package" --source "Nupack Server" --skip-duplicate
+      dotnet nuget push "$package" --source "Nupack Server" --api-key "$NUGET_API_KEY" --skip-duplicate
     done
 ```
 
@@ -574,13 +574,17 @@ For solutions with multiple projects:
 ```yaml
 - name: Publish release packages
   if: startsWith(github.ref, 'refs/tags/v')
+  env:
+    NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
   run: |
-    dotnet nuget push packages/*.nupkg --source "Nupack Server"
+    dotnet nuget push packages/*.nupkg --source "Nupack Server" --api-key "$NUGET_API_KEY"
 
 - name: Publish pre-release packages
   if: github.ref == 'refs/heads/develop'
+  env:
+    NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
   run: |
-    dotnet nuget push packages/*-preview.nupkg --source "Nupack Server"
+    dotnet nuget push packages/*-preview.nupkg --source "Nupack Server" --api-key "$NUGET_API_KEY"
 ```
 
 This guide provides comprehensive CI/CD integration options for automating your NuGet package publishing workflow with Nupack Server.
@@ -596,5 +600,3 @@ bash tests/smoke/container-smoke.sh
 The script builds the Dockerfile, starts the API and Web hosts with bounded health waits, pushes the fixture package using a generated publish key, and restores it with an empty package cache. It then restarts the same container and filesystem volume and restores into a second empty cache. Exact package-source mapping, the fresh cache files, and an observed package download request in the container log prove both server-side persistence and that `TestPackage` was obtained from Nupack rather than NuGet.org or a previous client cache. The image publishing job cannot run until this gate succeeds.
 
 For a previously built local image, use `SKIP_BUILD=1 IMAGE_TAG=<local-image>`. Generated keys and Docker resource names are per-run; the cleanup trap removes containers, volumes, caches, and temporary configuration on success or failure.
-
-

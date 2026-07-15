@@ -5,7 +5,7 @@ services:
       - "5003:5003"
       - "5004:5004"
     volumes:
-      - ./data:/app/data
+      - nupack-data:/app/data
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - Branding__ProductName=Nupack Server
@@ -44,7 +44,7 @@ services:
       - MINIO_ROOT_USER=${PACKAGE_STORAGE_S3_ACCESS_KEY:-minioadmin}
       - MINIO_ROOT_PASSWORD=${PACKAGE_STORAGE_S3_SECRET_KEY:-minioadmin}
     volumes:
-      - ./data/minio:/data
+      - minio-data:/data
 
   minio-init:
     image: minio/mc
@@ -57,3 +57,7 @@ services:
       mc mb -p local/${PACKAGE_STORAGE_S3_BUCKET:-nupack-packages};
       exit 0;
       "
+
+volumes:
+  nupack-data:
+  minio-data:

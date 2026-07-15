@@ -46,14 +46,21 @@ Six GitHub stars are a useful discovery signal, but they do not prove production
 
 | Risk | Current behavior | Why it matters | Priority |
 | --- | --- | --- | --- |
-| Deployment confidence | The image starts two processes, binds HTTPS inside the container, and checks a Web `/health` route that does not exist | The documented first run may fail even when source tests pass | P0 |
-| Storage readiness | `/health` always reports healthy | Orchestrators cannot distinguish process health from an unavailable package store | P0 |
 | Package lifecycle | Delete immediately removes bytes and duplicate protection is a check followed by a write | Retries, races, or mistakes can break consumers | P0/P1 |
 | Metadata durability | Each process rebuilds an in-memory catalog by reopening every stored package | Startup cost grows with the feed and instances can disagree | P1/P2 |
 | S3 download memory | The whole object is copied into a `MemoryStream` | Large or concurrent downloads can exhaust memory | P1 |
 | Credential migration | Publish and delete support separate credentials, while `WriteApiKey` remains a shared 0.x compatibility fallback | Deployments that keep the legacy fallback still grant publishers destructive delete authority | P1 |
 | Recovery | Backup, restore, reconciliation, and corruption checks are not executable workflows | Operators cannot prove their feed is recoverable | P1 |
-| Release truth | There are no tags, while the previous changelog claimed a production-ready `1.0.0` | Trust erodes when release claims and repository state diverge | P0 |
+| Release process | There is no tagged 0.x release or documented compatibility policy yet | Operators cannot pin an intentional release or judge upgrade risk | P1 |
+
+## Recently Closed Trust Gaps
+
+Two issues originally identified as P0 are now covered by implementation and regression tests:
+
+- The production image exposes HTTP only, provides matching API and Web health routes, runs as a non-root user, and uses a Docker-managed volume by default. The container smoke gate builds that image, pushes and restores a package, restarts with the same volume, and restores again from an empty client cache.
+- `/health/live` reports process liveness without probing dependencies. `/health/ready` and its `/health` compatibility alias probe the selected filesystem or S3-compatible package store, enforce a bounded timeout, and return `503` when storage is unavailable.
+
+These remain release gates rather than roadmap gaps: a regression in either area should block a release.
 
 ## Prioritization Rules
 
