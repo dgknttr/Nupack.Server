@@ -9,7 +9,8 @@ public class RepositoryConfigurationTests
     public void DockerCompose_UsesNamedVolumesForContainerData()
     {
         var repositoryRoot = FindRepositoryRoot();
-        var compose = File.ReadAllText(Path.Combine(repositoryRoot, "docker-compose.yml"));
+        var compose = File.ReadAllText(Path.Combine(repositoryRoot, "docker-compose.yml"))
+            .ReplaceLineEndings("\n");
 
         compose.Should().Contain("- nupack-data:/app/data");
         compose.Should().NotContain("- ./data:/app/data");

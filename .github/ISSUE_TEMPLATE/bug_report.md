@@ -27,7 +27,7 @@ If applicable, add screenshots to help explain your problem.
 
 ## Environment
 - OS: [e.g. Windows 11, Ubuntu 22.04]
-- .NET Version: [e.g. 8.0]
+- .NET Version: [e.g. 9.0]
 - Nupack Server Version: [e.g. commit SHA, container image digest, or 0.x tag]
 - Browser (if web interface): [e.g. Chrome 120, Firefox 121]
 
