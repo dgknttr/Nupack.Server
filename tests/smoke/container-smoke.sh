@@ -154,9 +154,12 @@ if [[ "${SKIP_BUILD:-0}" == "1" ]]; then
     fi
     echo "Using existing image ${IMAGE_TAG}."
 else
-    if ! docker image inspect "${IMAGE_TAG}" >/dev/null 2>&1; then
-        IMAGE_OWNED=1
+    if docker image inspect "${IMAGE_TAG}" >/dev/null 2>&1; then
+        echo "Refusing to overwrite existing image tag: ${IMAGE_TAG}" >&2
+        echo "Use SKIP_BUILD=1 to test that image, or choose a different IMAGE_TAG." >&2
+        exit 1
     fi
+    IMAGE_OWNED=1
     echo "Building ${IMAGE_TAG} from the repository Dockerfile."
     docker build --tag "${IMAGE_TAG}" "${ROOT_DIR}"
 fi
