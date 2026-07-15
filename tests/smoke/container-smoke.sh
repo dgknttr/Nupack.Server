@@ -13,6 +13,7 @@ HEALTH_ATTEMPTS="${HEALTH_ATTEMPTS:-60}"
 TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/nupack-container-smoke.XXXXXX")"
 PACKAGE_DOWNLOAD_PATH="/v3-flatcontainer/testpackage/1.0.0/testpackage.1.0.0.nupkg"
 CONTAINER_STARTED=0
+IMAGE_OWNED=0
 
 cleanup() {
     local status=$?
@@ -25,6 +26,9 @@ cleanup() {
 
     docker rm --force "${CONTAINER_NAME}" >/dev/null 2>&1 || true
     docker volume rm --force "${VOLUME_NAME}" >/dev/null 2>&1 || true
+    if (( IMAGE_OWNED == 1 )); then
+        docker image rm --force "${IMAGE_TAG}" >/dev/null 2>&1 || true
+    fi
     rm -rf "${TEMP_DIR}"
     exit "${status}"
 }
@@ -150,6 +154,9 @@ if [[ "${SKIP_BUILD:-0}" == "1" ]]; then
     fi
     echo "Using existing image ${IMAGE_TAG}."
 else
+    if ! docker image inspect "${IMAGE_TAG}" >/dev/null 2>&1; then
+        IMAGE_OWNED=1
+    fi
     echo "Building ${IMAGE_TAG} from the repository Dockerfile."
     docker build --tag "${IMAGE_TAG}" "${ROOT_DIR}"
 fi
